@@ -107,11 +107,11 @@ internal class Program
                 foreach (dynamic asset in assets)
                 {
                     string fileName = asset.name;
-                    if (fileName.EndsWith(".dll"))
+                    if (fileName.EndsWith(".dll") && urlDictionary.ContainsKey(folderPath + "\\" + fileName))
                     {
                         // Download and replace the DLL file
                         string downloadUrl = asset.browser_download_url;
-                        Console.WriteLine($"Download: {downloadUrl}");
+                        Console.WriteLine($"Downloading: {downloadUrl}");
 
                         // Use the downloadUrl to download the DLL file and replace the existing one
                         client.DefaultRequestHeaders.Add("Accept", "application/octet-stream");
@@ -148,5 +148,8 @@ internal class Program
                 goto download;
             }
         }
+    Console.WriteLine("\r\n");
+    Console.WriteLine("Finished updating mods. Press any key to Exit.");
+    Console.ReadKey();
     }
 }
