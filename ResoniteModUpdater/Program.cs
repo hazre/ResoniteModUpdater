@@ -148,8 +148,8 @@ internal class Program
                 goto download;
             }
         }
-    Console.WriteLine("\r\n");
-    Console.WriteLine("Finished updating mods. Press any key to Exit.");
-    Console.ReadKey();
+        Console.WriteLine("\r\n");
+        Console.WriteLine("Finished updating mods. Press any key to Exit.");
+        Console.ReadKey();
     }
 }
