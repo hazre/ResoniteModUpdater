@@ -1,9 +1,19 @@
-# Template
+# Resonite Mod Updater CLI
 
-A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that does x.
+Updates mods that have that have a github Link variable.
+
+> Does not work with monorepos with multiple mods nor with non github repositorys.
 
 ## Installation
 
-1. Install [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader).
-1. Place [Template.dll](https://github.com/hazre/Template/releases/latest/download/Template.dll) into your `rml_mods` folder. This folder should be at `C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_mods` for a default install. You can create it if it's missing, or if you launch the game once with ResoniteModLoader installed it will create the folder for you.
-1. Start the game. If you want to verify that the mod is working you can check your Resonite logs.
+1. Download [ResoniteModUpdater.zip](https://github.com/hazre/Template/releases/latest/download/ResoniteModUpdater.zip)
+2. Extract it anywhere.
+3. Right-click in Explorer and click on Open in Terminal.
+4. Run `.\ResoniteModUpdater.exe`
+
+## Options
+
+If you have private mods or mods that you don't want to update. You can ignore mods by adding a `_` prefix to the mod's filename. 
+
+- `--path`: the path to resonite rml_mods folder, default is `C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_mods` (Optional) 
+- `--bearerToken`: Your github auth token, to bypass 60 requests per hour limit. You shouldn't need this unless you run the it multiple times (Optional) 
