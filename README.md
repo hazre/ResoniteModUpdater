@@ -4,6 +4,13 @@ Updates mods that have that have a github Link variable.
 
 > Does not work with monorepos with multiple mods nor with non github repositorys.
 
+## Prerequisites
+- Have .Net 7.0 Installed (SDK or just runtime)
+  - Installer: https://dotnet.microsoft.com/en-us/download/dotnet/7.0
+  - Winget: `winget install Microsoft.DotNet.Runtime.7`
+
+
+
 ## Installation
 
 1. Download [ResoniteModUpdater.zip](https://github.com/hazre/Template/releases/latest/download/ResoniteModUpdater.zip)
