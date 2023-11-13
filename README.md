@@ -13,7 +13,7 @@
 
 ## Installation
 
-1. Download [ResoniteModUpdater_win_x64.zip](https://github.com/hazre/Template/releases/latest/download/ResoniteModUpdater_win_x64.zip) or [ResoniteModUpdater_linux_x64.zip](https://github.com/hazre/Template/releases/latest/download/ResoniteModUpdater_linux_x64.zip)
+1. Download [ResoniteModUpdater_win_x64.zip](https://github.com/hazre/ResoniteModUpdater/releases/latest/download/ResoniteModUpdater_win_x64.zip) or [ResoniteModUpdater_linux_x64.zip](https://github.com/hazre/ResoniteModUpdater/releases/latest/download/ResoniteModUpdater_linux_x64.zip)
 2. Extract it anywhere.
 3. Double click to Start or Run from terminal.
 
