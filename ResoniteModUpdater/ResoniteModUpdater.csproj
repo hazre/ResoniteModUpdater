@@ -22,6 +22,8 @@
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
     <PackageReference Include="Mono.Cecil" Version="0.11.5" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Spectre.Console" Version="0.47.1-preview.0.36" />
+    <PackageReference Include="Spectre.Console.Cli" Version="0.47.1-preview.0.36" />
   </ItemGroup>
 
 </Project>
