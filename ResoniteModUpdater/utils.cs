@@ -86,7 +86,7 @@ namespace ResoniteModUpdater
       }
       return Task.FromResult(urlDictionary);
     }
-    public static async Task<int> Download(string dllFile, string url, string? token)
+    public static async Task<int> Download(string dllFile, string url, bool dryMode, string? token)
     {
       HttpClient client = new HttpClient();
       client.DefaultRequestHeaders.Add("User-Agent", "Resonite mod updater");
@@ -126,7 +126,7 @@ namespace ResoniteModUpdater
               if (downloadedHashString != existingHashString)
               {
                 // Hashes are different, replace the DLL
-                File.WriteAllBytes(dllFile, downloadedDllBytes);
+                if (!dryMode) File.WriteAllBytes(dllFile, downloadedDllBytes);
                 return 0;
               }
               else
