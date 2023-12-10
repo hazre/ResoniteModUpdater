@@ -13,7 +13,7 @@ namespace ResoniteModUpdater
             app.Configure(config =>
             {
                 config.SetApplicationName("ResoniteModUpdater");
-                config.SetApplicationVersion("2.0.0");
+                config.SetApplicationVersion("2.1.0");
                 config.AddExample($"{Utils.GetDefaultPath()}");
                 config.AddExample($"{Utils.GetDefaultPath()}", "-token xxxxxxxxxxxxxx");
             });
