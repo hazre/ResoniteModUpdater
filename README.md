@@ -51,3 +51,36 @@ ResoniteModUpdater "C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_m
 - `-h, --help`: Prints help information, providing usage instructions for the tool.
 - `-v, --version`: Prints version information, displaying the version of ResoniteModUpdater.
 - `-t, --token`: GitHub authentication token. Use this option only if you plan to run the command multiple times within a short period. The token helps bypass GitHub's request limits (60 Requests per hour).
+- `-d, --dry`: Enables dry run mode. Checks for mod updates without installing them.
+
+## Settings File
+
+The `settings.json` file is used to store the settings for the Resonite Mod Updater. This file is automatically created in the same directory as the ResoniteModUpdater executable when you choose to save your settings.
+
+Here is an example of what the `settings.json` file might look like:
+
+```json
+{
+  "ModsFolder": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Resonite\\rml_mods",
+  "Token": "xxxxxxxxxxxxxx",
+  "DryMode": false
+}
+```
+
+### Fields
+
+- `ModsFolder`: The path to the Resonite mods folder.
+- `Token`: Your GitHub authentication token. This is only necessary if you plan to run the command multiple times within a short period. The token helps bypass GitHub's request limits (60 Requests per hour).
+- `DryMode`: A boolean value that enables or disables dry run mode. When enabled, the tool checks for mod updates without installing them.
+
+### Usage
+
+If a `settings.json` file is present in the same directory as the ResoniteModUpdater executable, the tool will automatically load the settings from this file. If you want to override these settings, you can do so by providing command line arguments.
+
+For example, if you have a `settings.json` file that specifies a `ModsFolder` and `Token`, but you want to run the tool in dry run mode, you can do so with the following command:
+
+```sh
+ResoniteModUpdater -d
+```
+
+This will load the `ModsFolder` and `Token` from the `settings.json` file and enable dry run mode.
