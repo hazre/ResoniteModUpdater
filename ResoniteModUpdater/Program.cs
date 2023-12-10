@@ -48,16 +48,16 @@ namespace ResoniteModUpdater
             {
                 [Description("Path to resonite mods folder.")]
                 [CommandArgument(0, "[ModsFolder]")]
-                public string? ModsFolder { get; init; }
+                public string? ModsFolder { get; set; }
 
                 [Description("GitHub authentication token to bypass the 60 requests per hour limit. Only necessary if you plan to run the command multiple times within a short period.")]
                 [CommandOption("-t|--token")]
-                public string? Token { get; init; }
+                public string? Token { get; set; }
 
                 [Description("Enables dry run mode. Checks for mod updates without installing them.")]
                 [CommandOption("-d|--dry")]
                 [DefaultValue(false)]
-                public bool DryMode { get; init; }
+                public bool DryMode { get; set; }
             }
 
             public override int Execute([NotNull] CommandContext context, [NotNull] Settings settings)
@@ -68,24 +68,35 @@ namespace ResoniteModUpdater
                     return 1;
                 }
 
+                // try to load settings from file
+                var loadedSettings = Utils.LoadSettings();
+                if (loadedSettings != null)
+                {
+                    AnsiConsole.Status()
+                        .Start("Settings file found, Loading settings...", ctx =>
+                        {
+                            settings = loadedSettings;
+                            Thread.Sleep(1000);
+                        });
+                };
+
                 AnsiConsole.Status()
                     .Start("Starting...", ctx =>
                     {
                         Thread.Sleep(1000);
                         ctx.Status("Checking Arguments...");
 
-                        AnsiConsole.Write(new Padder(new Markup("[yellow]Arguments[/]")).Padding(0, 0));
+                        AnsiConsole.Write(new Padder(new Markup($"[yellow]Arguments {(loadedSettings != null ? "(Loaded from [green]settings.json[/])" : "")}[/]")).Padding(0, 0));
 
                         if (!string.IsNullOrEmpty(settings.ModsFolder)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] ModsFolder Found, skipping Prompt...")).Padding(1, 0));
-                        if (!string.IsNullOrEmpty(settings.Token)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] Github Token Found.")).Padding(1, 0));
+                        if (!string.IsNullOrEmpty(settings.Token)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] Github Token Found")).Padding(1, 0));
+                        if (settings.DryMode) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] Dry run mode")).Padding(1, 0));
                     });
 
+                settings.ModsFolder ??= AskPath();
                 AnsiConsole.WriteLine();
 
-                string folderPath = settings.ModsFolder ?? AskPath();
-                AnsiConsole.WriteLine();
-
-                var urls = Utils.GetFiles(folderPath).GetAwaiter().GetResult();
+                var urls = Utils.GetFiles(settings.ModsFolder).GetAwaiter().GetResult();
                 AnsiConsole.Status()
                     .Start("Finding Mods...", ctx =>
                     {
@@ -140,6 +151,18 @@ namespace ResoniteModUpdater
                             ctx.Refresh();
                         }
                     });
+
+                if (loadedSettings == null)
+                {
+                    // Ask user if they want to save settings
+                    bool saveSettings = AnsiConsole.Confirm("Do you want to save the current settings?");
+                    if (saveSettings)
+                    {
+                        // Save settings to file
+                        Utils.SaveSettings(settings);
+                    }
+                }
+
                 AnsiConsole.WriteLine();
                 AnsiConsole.MarkupLine($"[slateblue3]{(settings.DryMode ? "Finished Checking Mod Updates" : "Finished Updating mods")}. Press any key to Exit.[/]");
                 Console.ReadKey();

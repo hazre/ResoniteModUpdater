@@ -6,11 +6,13 @@ using Mono.Cecil.Cil;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Spectre.Console;
+using static ResoniteModUpdater.Program.DefaultCommand;
 
 namespace ResoniteModUpdater
 {
   public static class Utils
   {
+    internal static string SettingsFileName = "settings.json";
     public static string GetDefaultPath()
     {
       string defaultPath = "";
@@ -25,6 +27,25 @@ namespace ResoniteModUpdater
       }
 
       return defaultPath;
+    }
+
+    internal static void SaveSettings(Settings settings)
+    {
+      var settingsJson = JsonConvert.SerializeObject(settings, Formatting.Indented);
+      var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SettingsFileName);
+      File.WriteAllText(settingsFilePath, settingsJson);
+    }
+
+    internal static Settings? LoadSettings()
+    {
+      var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SettingsFileName);
+      if (File.Exists(settingsFilePath))
+      {
+        var settingsJson = File.ReadAllText(settingsFilePath);
+        return JsonConvert.DeserializeObject<Settings>(settingsJson);
+      }
+
+      return null;
     }
 
     public static Task<Dictionary<string, string>> GetFiles(string folderPath)
