@@ -42,11 +42,11 @@ ResoniteModUpdater "C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_m
 ResoniteModUpdater "C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_mods" -token xxxxxxxxxxxxxx
 ```
 
-## Arguments
+### Arguments
 
 - `[ModsFolder]`: The path to the Resonite mods folder.
 
-## Options
+### Options
 
 - `-h, --help`: Prints help information, providing usage instructions for the tool.
 - `-v, --version`: Prints version information, displaying the version of ResoniteModUpdater.
