@@ -53,6 +53,11 @@ namespace ResoniteModUpdater
                 [Description("GitHub authentication token to bypass the 60 requests per hour limit. Only necessary if you plan to run the command multiple times within a short period.")]
                 [CommandOption("-t|--token")]
                 public string? Token { get; init; }
+
+                [Description("Enables dry run mode. Checks for mod updates without installing them.")]
+                [CommandOption("-d|--dry")]
+                [DefaultValue(false)]
+                public bool DryMode { get; init; }
             }
 
             public override int Execute([NotNull] CommandContext context, [NotNull] Settings settings)
@@ -105,7 +110,7 @@ namespace ResoniteModUpdater
                 AnsiConsole.Write(new Padder(new Markup($"[orange1]Mods ({urls.Count})[/]")).Padding(0, 0));
 
                 AnsiConsole.Status()
-                    .Start("Updating Mods...", ctx =>
+                    .Start(settings.DryMode ? "Checking for Mod Updates..." : "Updating Mods...", ctx =>
                     {
                         Thread.Sleep(1000);
                     });
@@ -124,10 +129,10 @@ namespace ResoniteModUpdater
                         {
                             string dllFile = url.Key;
                             string urlValue = url.Value;
-                            var result = Utils.Download(dllFile, urlValue, settings.Token).GetAwaiter().GetResult();
+                            var result = Utils.Download(dllFile, urlValue, settings.DryMode, settings.Token).GetAwaiter().GetResult();
                             var text = result switch
                             {
-                                0 => new List<string> { "+", "[green]Updated[/]" },
+                                0 => new List<string> { "+", settings.DryMode ? "[green]Update Available[/]" : "[green]Updated[/]" },
                                 1 => new List<string> { "-", "[dim]Up To Date[/]" },
                                 _ => new List<string> { "/", "[red]Something went Wrong[/]" },
                             };
@@ -136,7 +141,7 @@ namespace ResoniteModUpdater
                         }
                     });
                 AnsiConsole.WriteLine();
-                AnsiConsole.MarkupLine($"[slateblue3]Finished Updating mods. Press any key to Exit.[/]");
+                AnsiConsole.MarkupLine($"[slateblue3]{(settings.DryMode ? "Finished Checking Mod Updates" : "Finished Updating mods")}. Press any key to Exit.[/]");
                 Console.ReadKey();
                 return 0;
             }
