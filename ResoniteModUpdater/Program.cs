@@ -50,7 +50,7 @@ namespace ResoniteModUpdater
                 [CommandArgument(0, "[ModsFolder]")]
                 public string? ModsFolder { get; set; }
 
-                [Description("GitHub authentication token to bypass the 60 requests per hour limit. Only necessary if you plan to run the command multiple times within a short period.")]
+                [Description("GitHub authentication token to allow downloading from GitHub's official API as an alternative to using the RSS feed. This option is optional and can be used if preferred over the RSS feed method.")]
                 [CommandOption("-t|--token")]
                 public string? Token { get; set; }
 
@@ -140,7 +140,15 @@ namespace ResoniteModUpdater
                         {
                             string dllFile = url.Key;
                             string urlValue = url.Value;
-                            var result = Utils.Download(dllFile, urlValue, settings.DryMode, settings.Token).GetAwaiter().GetResult();
+                            int result;
+                            if (!string.IsNullOrEmpty(settings.Token))
+                            {
+                                result = Utils.Download(dllFile, urlValue, settings.DryMode, settings.Token).GetAwaiter().GetResult();
+                            }
+                            else
+                            {
+                                result = Utils.DownloadFromRSS(dllFile, urlValue, settings.DryMode).GetAwaiter().GetResult();
+                            }
                             var text = result switch
                             {
                                 0 => new List<string> { "+", settings.DryMode ? "[green]Update Available[/]" : "[green]Updated[/]" },
