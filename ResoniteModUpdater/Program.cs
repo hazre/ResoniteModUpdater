@@ -16,6 +16,10 @@ namespace ResoniteModUpdater
                 config.SetApplicationVersion("2.1.0");
                 config.AddExample($"{Utils.GetDefaultPath()}");
                 config.AddExample($"{Utils.GetDefaultPath()}", "-token xxxxxxxxxxxxxx");
+
+                config.AddCommand<SearchCommand>("search")
+                .WithAlias("find")
+                .WithDescription("Searches the manifest for mods (Alias: find)");
             });
 
             return app.Run(args);
@@ -174,6 +178,64 @@ namespace ResoniteModUpdater
                 AnsiConsole.WriteLine();
                 AnsiConsole.MarkupLine($"[slateblue3]{(settings.DryMode ? "Finished Checking Mod Updates" : "Finished Updating mods")}. Press any key to Exit.[/]");
                 Console.ReadKey();
+                return 0;
+            }
+        }
+        public class SearchCommandSettings : CommandSettings
+        {
+            [Description("Query to search for in the manifest.")]
+            [CommandArgument(0, "[QUERY]")]
+            public required string Query { get; set; }
+
+            [Description("Set alternative manifest json url. It must match the RML manifest schema (Advanced)")]
+            [CommandOption("-m|--manifest")]
+            [DefaultValue("https://raw.githubusercontent.com/resonite-modding-group/resonite-mod-manifest/main/manifest.json")]
+            public required string manifest { get; set; }
+        }
+
+        public class SearchCommand : Command<SearchCommandSettings>
+        {
+            public override int Execute([NotNull] CommandContext context, [NotNull] SearchCommandSettings settings)
+            {
+                if (string.IsNullOrEmpty(settings.Query))
+                {
+                    AnsiConsole.Write(new Padder(new Markup("[red]No search term provided[/]")).Padding(1, 0));
+                    return 0;
+                }
+
+                AnsiConsole.Status()
+                    .Start($"Searching for {settings.Query}...", ctx =>
+                    {
+                        Thread.Sleep(1000);
+                    });
+
+                var results = Utils.SearchManifest(settings.Query, settings.manifest).GetAwaiter().GetResult();
+
+                if (results.Count == 0)
+                {
+                    AnsiConsole.WriteLine();
+                    AnsiConsole.Write(new Markup($"[red]No results found for query: {settings.Query}. Press any key to Exit.[/]"));
+                    Console.ReadKey();
+                    return 0;
+                }
+
+                var table = new Table()
+                 .AddColumn(new TableColumn("[cyan]Name[/]"))
+                 .AddColumn(new TableColumn("[cyan]Author[/]"))
+                 .AddColumn(new TableColumn("[cyan]ID[/]"))
+                 .AddColumn(new TableColumn("[cyan]Version[/]"))
+                 .AddColumn(new TableColumn("[cyan]Description[/]"));
+
+                table.ShowRowSeparators();
+
+                foreach (var result in results)
+                {
+                    var latestVersionKey = result.Entry.Versions.Keys.Max();
+                    table.AddRow(result.Entry.Name, result.AuthorName, result.ID, latestVersionKey ?? "N/A", result.Entry.Description);
+                }
+
+                AnsiConsole.Write(table);
+
                 return 0;
             }
         }
