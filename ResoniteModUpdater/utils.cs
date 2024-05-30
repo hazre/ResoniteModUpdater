@@ -206,5 +206,45 @@ namespace ResoniteModUpdater
         return -1;
       }
     }
+    public static async Task<List<SearchResult>> SearchManifest(string searchTerm, string manifestUrl)
+    {
+      List<SearchResult> results = new List<SearchResult>();
+
+      string manifestContent = await DownloadManifest(manifestUrl);
+
+      if (string.IsNullOrEmpty(manifestContent)) return results;
+
+      var manifest = JsonConvert.DeserializeObject<ManifestData>(manifestContent);
+
+      if (manifest == null || manifest.Objects == null) return results;
+
+      foreach (var authorKey in manifest.Objects.Values)
+      {
+        foreach (var entryKey in authorKey.Entries)
+        {
+          if (entryKey.Value.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || entryKey.Value.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+          {
+            string authorName = authorKey.Author.Keys.First();
+            var latestVersionKey = entryKey.Value.Versions.Keys.Max();
+            string id = entryKey.Key;
+            results.Add(new SearchResult
+            {
+              Entry = entryKey.Value,
+              ID = id,
+              AuthorName = authorName,
+              LatestVersion = latestVersionKey!,
+            });
+          }
+        }
+      }
+
+      return results;
+    }
+
+    private static async Task<string> DownloadManifest(string url)
+    {
+      using HttpClient client = new HttpClient();
+      return await client.GetStringAsync(url);
+    }
   }
 }
