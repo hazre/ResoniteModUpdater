@@ -13,7 +13,7 @@ namespace ResoniteModUpdater
             app.Configure(config =>
             {
                 config.SetApplicationName("ResoniteModUpdater");
-                config.SetApplicationVersion("2.1.0");
+                config.SetApplicationVersion("2.2.0");
                 config.AddExample($"{Utils.GetDefaultPath()}");
                 config.AddExample($"{Utils.GetDefaultPath()}", "-token xxxxxxxxxxxxxx");
 
@@ -229,10 +229,42 @@ namespace ResoniteModUpdater
 
                 table.ShowRowSeparators();
 
-                foreach (var result in results)
+                if (AnsiConsole.Profile.Capabilities.Links)
                 {
-                    table.AddRow(result.Entry.Name, result.AuthorName, result.ID, result.LatestVersion ?? "N/A", result.Entry.Description);
+                    foreach (var result in results)
+                    {
+                        Uri? releaseUrl = null;
+
+                        if (result.Entry.Versions[result.LatestVersion].ReleaseUrl != null)
+                        {
+                            releaseUrl = result.Entry.Versions[result.LatestVersion].ReleaseUrl;
+                        }
+                        else if (result.Entry.Versions[result.LatestVersion].Artifacts.Last().Url.Host.EndsWith("github.com"))
+                        {
+                            Uri uri = result.Entry.Versions[result.LatestVersion].Artifacts.Last().Url;
+                            string path = uri.AbsolutePath;
+                            string repoOwner = path.Split('/')[1];
+                            string repoName = path.Split('/')[2];
+                            string tagOrVersion = path.Split('/')[5];
+
+                            releaseUrl = new Uri($"https://github.com/{repoOwner}/{repoName}/releases/tag/{tagOrVersion}");
+                        }
+                        else if (result.Entry.SourceLocation != null)
+                        {
+                            releaseUrl = result.Entry.SourceLocation;
+                        }
+
+                        table.AddRow(result.Entry.Name, result.AuthorName, result.ID, $"[link={releaseUrl}]{result.LatestVersion}[/]", result.Entry.Description);
+                    }
                 }
+                else
+                {
+                    foreach (var result in results)
+                    {
+                        table.AddRow(result.Entry.Name, result.AuthorName, result.ID, result.LatestVersion, result.Entry.Description);
+                    }
+                }
+
 
                 AnsiConsole.Write(table);
 

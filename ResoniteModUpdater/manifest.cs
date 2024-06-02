@@ -81,5 +81,6 @@ namespace ResoniteModUpdater
     public required string ID { get; set; }
     public required string AuthorName { get; set; }
     public required string LatestVersion { get; set; }
+    public required Uri AuthorUrl { get; set; }
   }
 }

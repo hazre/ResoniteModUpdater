@@ -233,6 +233,7 @@ namespace ResoniteModUpdater
               ID = id,
               AuthorName = authorName,
               LatestVersion = latestVersionKey!,
+              AuthorUrl = authorKey.Author.First().Value.Url,
             });
           }
         }
