@@ -174,23 +174,30 @@ namespace ResoniteModUpdater
 
     public static async Task<int> DownloadFromRSS(string dllFile, string url, bool dryMode)
     {
-      string owner = url.Split('/')[3];
-      string repo = url.Split('/')[4];
+      try
+      {
+        string owner = url.Split('/')[3];
+        string repo = url.Split('/')[4];
 
-      XmlReader r = XmlReader.Create($"https://github.com/{owner}/{repo}/tags.atom");
-      SyndicationFeed tags = SyndicationFeed.Load(r);
-      r.Close();
+        XmlReader r = XmlReader.Create($"https://github.com/{owner}/{repo}/tags.atom");
+        SyndicationFeed tags = SyndicationFeed.Load(r);
+        r.Close();
 
-      if (!tags.Items.Any()) return -1;
+        if (!tags.Items.Any()) return -1;
 
-      SyndicationItem latest = tags.Items.First();
-      if (latest == null || latest.Title == null) return -1;
+        SyndicationItem latest = tags.Items.First();
+        if (latest == null || latest.Title == null) return -1;
 
-      string tag = latest.Links[0].Uri.ToString().Split('/')[7];
+        string tag = latest.Links[0].Uri.ToString().Split('/')[7];
 
-      string downloadUrl = $"https://github.com/{owner}/{repo}/releases/download/{tag}/{Path.GetFileName(dllFile)}";
+        string downloadUrl = $"https://github.com/{owner}/{repo}/releases/download/{tag}/{Path.GetFileName(dllFile)}";
 
-      return await DownloadAndValidateDLL(dllFile, downloadUrl, dryMode);
+        return await DownloadAndValidateDLL(dllFile, downloadUrl, dryMode);
+      }
+      catch
+      {
+        return -1;
+      }
     }
 
     public static async Task<int> DownloadAndValidateDLL(string dllFile, string downloadUrl, bool dryMode)
