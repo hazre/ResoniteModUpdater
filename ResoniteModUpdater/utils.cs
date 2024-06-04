@@ -135,7 +135,7 @@ namespace ResoniteModUpdater
       }
       return Task.FromResult(urlDictionary);
     }
-    public static async Task<int> Download(string dllFile, string url, bool dryMode, string? token)
+    public static async Task<(int, string?)> Download(string dllFile, string url, bool dryMode, string? token)
     {
       HttpClient client = new HttpClient();
       client.DefaultRequestHeaders.Add("User-Agent", "Resonite mod updater");
@@ -169,10 +169,10 @@ namespace ResoniteModUpdater
         goto download;
         // throw new Exception("Access to the resource is forbidden.");
       }
-      return -1;
+      return (-1, "");
     }
 
-    public static async Task<int> DownloadFromRSS(string dllFile, string url, bool dryMode)
+    public static async Task<(int, string?)> DownloadFromRSS(string dllFile, string url, bool dryMode)
     {
       try
       {
@@ -183,10 +183,10 @@ namespace ResoniteModUpdater
         SyndicationFeed tags = SyndicationFeed.Load(r);
         r.Close();
 
-        if (!tags.Items.Any()) return -1;
+        if (!tags.Items.Any()) return (-1, null);
 
         SyndicationItem latest = tags.Items.First();
-        if (latest == null || latest.Title == null) return -1;
+        if (latest == null || latest.Title == null) return (-1, "");
 
         string tag = latest.Links[0].Uri.ToString().Split('/')[7];
 
@@ -196,11 +196,11 @@ namespace ResoniteModUpdater
       }
       catch
       {
-        return -1;
+        return (-1, null);
       }
     }
 
-    public static async Task<int> DownloadAndValidateDLL(string dllFile, string downloadUrl, bool dryMode)
+    public static async Task<(int, string?)> DownloadAndValidateDLL(string dllFile, string downloadUrl, bool dryMode)
     {
       using HttpClient client = new HttpClient();
       client.DefaultRequestHeaders.Add("Accept", "application/octet-stream");
@@ -223,22 +223,22 @@ namespace ResoniteModUpdater
         {
           // Hashes are different, replace the DLL
           if (!dryMode) File.WriteAllBytes(dllFile, downloadedDllBytes);
-          return 0;
+          return (0, downloadUrl);
         }
         else
         {
-          return 1;
+          return (1, null);
         }
       }
       catch (HttpRequestException e)
       {
         AnsiConsole.MarkupLine($"Error downloading DLL from {downloadUrl}: {e.Message}");
-        return -1;
+        return (-1, null);
       }
       catch (IOException e)
       {
         AnsiConsole.MarkupLine($"IO error while processing DLL: {e.Message}");
-        return -1;
+        return (-1, null);
       }
     }
     public static async Task<List<SearchResult>> SearchManifest(string searchTerm, string manifestUrl)

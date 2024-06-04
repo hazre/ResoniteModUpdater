@@ -143,7 +143,7 @@ namespace ResoniteModUpdater
                 table.LeftAligned();
                 table.Collapse();
                 table.HideHeaders();
-                table.AddColumns("", "", "");
+                table.AddColumns("", "", "", "");
                 table.Columns[0].Width(1);
                 AnsiConsole.Live(new Padder(table).Padding(1, 0))
                     .Start(ctx =>
@@ -152,7 +152,7 @@ namespace ResoniteModUpdater
                         {
                             string dllFile = url.Key;
                             string urlValue = url.Value;
-                            int result;
+                            (int, string?) result;
                             if (!string.IsNullOrEmpty(settingsConfig.Token))
                             {
                                 result = Utils.Download(dllFile, urlValue, settingsConfig.DryMode, settingsConfig.Token).GetAwaiter().GetResult();
@@ -161,13 +161,21 @@ namespace ResoniteModUpdater
                             {
                                 result = Utils.DownloadFromRSS(dllFile, urlValue, settingsConfig.DryMode).GetAwaiter().GetResult();
                             }
-                            var text = result switch
+                            var text = result.Item1 switch
                             {
                                 0 => new List<string> { "+", settingsConfig.DryMode ? "[green]Update Available[/]" : "[green]Updated[/]" },
                                 1 => new List<string> { "-", "[dim]Up To Date[/]" },
                                 _ => new List<string> { "/", "[red]Something went Wrong[/]" },
                             };
-                            table.AddRow($"[orange1]{text[0]}[/]", Path.GetFileName(dllFile), $"{text[1]}");
+                            string? releaseUrl = null;
+                            if (!string.IsNullOrEmpty(result.Item2))
+                            {
+                                string owner = result.Item2.Split('/')[3];
+                                string repo = result.Item2.Split('/')[4];
+                                string tag = result.Item2.Split('/')[7];
+                                releaseUrl = $"https://github.com/{owner}/{repo}/releases/{tag}";
+                            }
+                            table.AddRow($"[orange1]{text[0]}[/]", Path.GetFileName(dllFile), $"{text[1]}", $"[link={releaseUrl}]{releaseUrl}[/]");
                             ctx.Refresh();
                         }
                     });
@@ -176,8 +184,8 @@ namespace ResoniteModUpdater
                 string? resoniteModLoaderPath = Utils.GetLibraryPath(settingsConfig.ModsFolder, "Libraries", resoniteModLoaderDLL);
                 if (!string.IsNullOrEmpty(resoniteModLoaderPath))
                 {
-                    int result = Utils.DownloadFromRSS(resoniteModLoaderPath, settingsConfig.ResoniteModLoaderSource, true).GetAwaiter().GetResult();
-                    if (result == 0)
+                    (int, string?) result = Utils.DownloadFromRSS(resoniteModLoaderPath, settingsConfig.ResoniteModLoaderSource, true).GetAwaiter().GetResult();
+                    if (result.Item1 == 0)
                     {
                         bool updateResoniteModLoader = AnsiConsole.Confirm($"There is a update available for {resoniteModLoaderDLL}, Would you like to update it?");
                         if (updateResoniteModLoader)
@@ -195,8 +203,8 @@ namespace ResoniteModUpdater
                 string? harmonyPath = Utils.GetLibraryPath(settingsConfig.ModsFolder, "rml_libs", harmonyDLL);
                 if (!string.IsNullOrEmpty(harmonyPath))
                 {
-                    int result = Utils.DownloadFromRSS(harmonyPath, settingsConfig.ResoniteModLoaderSource, true).GetAwaiter().GetResult();
-                    if (result == 0)
+                    (int, string?) result = Utils.DownloadFromRSS(harmonyPath, settingsConfig.ResoniteModLoaderSource, true).GetAwaiter().GetResult();
+                    if (result.Item1 == 0)
                     {
                         bool updateHarmony = AnsiConsole.Confirm($"There is a update available for {harmonyDLL}, Would you like to update it?");
                         if (updateHarmony)
