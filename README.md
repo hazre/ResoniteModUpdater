@@ -5,7 +5,7 @@
 > Does not work with monorepos with multiple mods nor with non github repositorys.
 
 ## Prerequisites
-- Have .Net 7.0 Installed (SDK or just runtime)
+- Have .Net 7.0 or **higher** Installed (SDK or just runtime)
   - Installer: https://dotnet.microsoft.com/en-us/download/dotnet/7.0
   - Winget: `winget install Microsoft.DotNet.Runtime.7`
 
@@ -28,6 +28,10 @@ To use ResoniteModUpdater, you need to specify the mods folder path and, optiona
 ResoniteModUpdater [ModsFolder] [OPTIONS]
 ```
 
+```sh
+ResoniteModUpdater search [QUERY] [OPTIONS]
+```
+
 ### Examples
 
 1. Update Resonite mods without using an authentication token:
@@ -46,12 +50,17 @@ ResoniteModUpdater "C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_m
 
 - `[ModsFolder]`: The path to the Resonite mods folder.
 
+### Commands
+
+-  `Search`: Searches the manifest for mods (Alias: find)
+
 ### Options
 
 - `-h, --help`: Prints help information, providing usage instructions for the tool.
 - `-v, --version`: Prints version information, displaying the version of ResoniteModUpdater.
 - `-t, --token`: GitHub authentication token. Use this option only if you plan to run the command multiple times within a short period. The token helps bypass GitHub's request limits (60 Requests per hour).
 - `-d, --dry`: Enables dry run mode. Checks for mod updates without installing them.
+- `search -m, --manifest`: Set alternative manifest json url. It must match the RML manifest schema (Advanced)
 
 ## Settings File
 
@@ -62,16 +71,20 @@ Here is an example of what the `settings.json` file might look like:
 ```json
 {
   "ModsFolder": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Resonite\\rml_mods",
-  "Token": "xxxxxxxxxxxxxx",
-  "DryMode": false
+  "Token": null,
+  "DryMode": false,
+  "ResoniteModLoaderSource": "https://github.com/resonite-modding-group/ResoniteModLoader",
+  "manifest": "https://raw.githubusercontent.com/resonite-modding-group/resonite-mod-manifest/main/manifest.json"
 }
 ```
 
 ### Fields
 
 - `ModsFolder`: The path to the Resonite mods folder.
-- `Token`: Your GitHub authentication token. This is only necessary if you plan to run the command multiple times within a short period. The token helps bypass GitHub's request limits (60 Requests per hour).
+- `Token`: GitHub authentication token to allow downloading from GitHub's official API as an alternative to using Github's RSS feed. This option is optional and can be used if preferred over the RSS feed method.
 - `DryMode`: A boolean value that enables or disables dry run mode. When enabled, the tool checks for mod updates without installing them.
+- `ResoniteModLoaderSource`: Allows you to change where `ResoniteModLoader.dll` and `0Harmony.dll` are updated from.
+-  `manifest`: It let's you aet alternative manifest json url. It must match the ResoniteModLoader manifest schema.
 
 ### Usage
 

@@ -13,9 +13,14 @@ namespace ResoniteModUpdater
             app.Configure(config =>
             {
                 config.SetApplicationName("ResoniteModUpdater");
-                config.SetApplicationVersion("2.1.0");
+                config.SetApplicationVersion("2.2.0");
                 config.AddExample($"{Utils.GetDefaultPath()}");
                 config.AddExample($"{Utils.GetDefaultPath()}", "-token xxxxxxxxxxxxxx");
+
+                config.AddCommand<SearchCommand>("search")
+                    .WithExample("search", "example")
+                    .WithAlias("find")
+                    .WithDescription("Searches the manifest for mods (Alias: find)");
             });
 
             return app.Run(args);
@@ -50,7 +55,7 @@ namespace ResoniteModUpdater
                 [CommandArgument(0, "[ModsFolder]")]
                 public string? ModsFolder { get; set; }
 
-                [Description("GitHub authentication token to bypass the 60 requests per hour limit. Only necessary if you plan to run the command multiple times within a short period.")]
+                [Description("GitHub authentication token to allow downloading from GitHub's official API as an alternative to using the RSS feed. This option is optional and can be used if preferred over the RSS feed method.")]
                 [CommandOption("-t|--token")]
                 public string? Token { get; set; }
 
@@ -68,6 +73,13 @@ namespace ResoniteModUpdater
                     return 1;
                 }
 
+                var settingsConfig = new Utils.SettingsConfig
+                {
+                    ModsFolder = settings.ModsFolder,
+                    Token = settings.Token,
+                    DryMode = settings.DryMode,
+                };
+
                 // try to load settings from file
                 var loadedSettings = Utils.LoadSettings();
                 if (loadedSettings != null)
@@ -75,7 +87,7 @@ namespace ResoniteModUpdater
                     AnsiConsole.Status()
                         .Start("Settings file found, Loading settings...", ctx =>
                         {
-                            settings = loadedSettings;
+                            settingsConfig = loadedSettings;
                             Thread.Sleep(1000);
                         });
                 };
@@ -88,15 +100,15 @@ namespace ResoniteModUpdater
 
                         AnsiConsole.Write(new Padder(new Markup($"[yellow]Arguments {(loadedSettings != null ? "(Loaded from [green]settings.json[/])" : "")}[/]")).Padding(0, 0));
 
-                        if (!string.IsNullOrEmpty(settings.ModsFolder)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] ModsFolder Found, skipping Prompt...")).Padding(1, 0));
-                        if (!string.IsNullOrEmpty(settings.Token)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] Github Token Found")).Padding(1, 0));
-                        if (settings.DryMode) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] Dry run mode")).Padding(1, 0));
+                        if (!string.IsNullOrEmpty(settingsConfig.ModsFolder)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] ModsFolder Found, skipping Prompt...")).Padding(1, 0));
+                        if (!string.IsNullOrEmpty(settingsConfig.Token)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] Github Token Found")).Padding(1, 0));
+                        if (settingsConfig.DryMode) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] Dry run mode")).Padding(1, 0));
                     });
 
-                settings.ModsFolder ??= AskPath();
+                settingsConfig.ModsFolder ??= AskPath();
                 AnsiConsole.WriteLine();
 
-                var urls = Utils.GetFiles(settings.ModsFolder).GetAwaiter().GetResult();
+                var urls = Utils.GetFiles(settingsConfig.ModsFolder).GetAwaiter().GetResult();
                 AnsiConsole.Status()
                     .Start("Finding Mods...", ctx =>
                     {
@@ -114,14 +126,14 @@ namespace ResoniteModUpdater
                 {
                     AnsiConsole.MarkupLine($"[red]{ex.Message} Press any key to Exit.[/]");
                     Console.ReadKey();
-                    return 1; // Return an error code
+                    return 1;
                 }
 
 
                 AnsiConsole.Write(new Padder(new Markup($"[orange1]Mods ({urls.Count})[/]")).Padding(0, 0));
 
                 AnsiConsole.Status()
-                    .Start(settings.DryMode ? "Checking for Mod Updates..." : "Updating Mods...", ctx =>
+                    .Start(settingsConfig.DryMode ? "Checking for Mod Updates..." : "Updating Mods...", ctx =>
                     {
                         Thread.Sleep(1000);
                     });
@@ -131,7 +143,7 @@ namespace ResoniteModUpdater
                 table.LeftAligned();
                 table.Collapse();
                 table.HideHeaders();
-                table.AddColumns("", "", "");
+                table.AddColumns("", "", "", "");
                 table.Columns[0].Width(1);
                 AnsiConsole.Live(new Padder(table).Padding(1, 0))
                     .Start(ctx =>
@@ -140,17 +152,71 @@ namespace ResoniteModUpdater
                         {
                             string dllFile = url.Key;
                             string urlValue = url.Value;
-                            var result = Utils.Download(dllFile, urlValue, settings.DryMode, settings.Token).GetAwaiter().GetResult();
-                            var text = result switch
+                            (int, string?) result;
+                            if (!string.IsNullOrEmpty(settingsConfig.Token))
                             {
-                                0 => new List<string> { "+", settings.DryMode ? "[green]Update Available[/]" : "[green]Updated[/]" },
+                                result = Utils.Download(dllFile, urlValue, settingsConfig.DryMode, settingsConfig.Token).GetAwaiter().GetResult();
+                            }
+                            else
+                            {
+                                result = Utils.DownloadFromRSS(dllFile, urlValue, settingsConfig.DryMode).GetAwaiter().GetResult();
+                            }
+                            var text = result.Item1 switch
+                            {
+                                0 => new List<string> { "+", settingsConfig.DryMode ? "[green]Update Available[/]" : "[green]Updated[/]" },
                                 1 => new List<string> { "-", "[dim]Up To Date[/]" },
                                 _ => new List<string> { "/", "[red]Something went Wrong[/]" },
                             };
-                            table.AddRow($"[orange1]{text[0]}[/]", Path.GetFileName(dllFile), $"{text[1]}");
+                            string? releaseUrl = null;
+                            if (!string.IsNullOrEmpty(result.Item2))
+                            {
+                                string owner = result.Item2.Split('/')[3];
+                                string repo = result.Item2.Split('/')[4];
+                                string tag = result.Item2.Split('/')[7];
+                                releaseUrl = $"https://github.com/{owner}/{repo}/releases/{tag}";
+                            }
+                            table.AddRow($"[orange1]{text[0]}[/]", Path.GetFileName(dllFile), $"{text[1]}", $"[link={releaseUrl}]{releaseUrl}[/]");
                             ctx.Refresh();
                         }
                     });
+
+                string resoniteModLoaderDLL = "ResoniteModLoader.dll";
+                string? resoniteModLoaderPath = Utils.GetLibraryPath(settingsConfig.ModsFolder, "Libraries", resoniteModLoaderDLL);
+                if (!string.IsNullOrEmpty(resoniteModLoaderPath))
+                {
+                    (int, string?) result = Utils.DownloadFromRSS(resoniteModLoaderPath, settingsConfig.ResoniteModLoaderSource, true).GetAwaiter().GetResult();
+                    if (result.Item1 == 0)
+                    {
+                        bool updateResoniteModLoader = AnsiConsole.Confirm($"There is a update available for {resoniteModLoaderDLL}, Would you like to update it?");
+                        if (updateResoniteModLoader)
+                        {
+                            result = Utils.DownloadFromRSS(resoniteModLoaderPath, settingsConfig.ResoniteModLoaderSource, false).GetAwaiter().GetResult();
+                        }
+                    }
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"[red]{resoniteModLoaderDLL} not found. Skipping..[/]");
+                }
+
+                string harmonyDLL = "0Harmony.dll";
+                string? harmonyPath = Utils.GetLibraryPath(settingsConfig.ModsFolder, "rml_libs", harmonyDLL);
+                if (!string.IsNullOrEmpty(harmonyPath))
+                {
+                    (int, string?) result = Utils.DownloadFromRSS(harmonyPath, settingsConfig.ResoniteModLoaderSource, true).GetAwaiter().GetResult();
+                    if (result.Item1 == 0)
+                    {
+                        bool updateHarmony = AnsiConsole.Confirm($"There is a update available for {harmonyDLL}, Would you like to update it?");
+                        if (updateHarmony)
+                        {
+                            result = Utils.DownloadFromRSS(harmonyPath, settingsConfig.ResoniteModLoaderSource, false).GetAwaiter().GetResult();
+                        }
+                    }
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"[red]{harmonyDLL} not found. Skipping..[/]");
+                }
 
                 if (loadedSettings == null)
                 {
@@ -158,14 +224,126 @@ namespace ResoniteModUpdater
                     bool saveSettings = AnsiConsole.Confirm("Do you want to save the current settings?");
                     if (saveSettings)
                     {
-                        // Save settings to file
-                        Utils.SaveSettings(settings);
+                        Utils.SaveSettings(settingsConfig);
                     }
                 }
 
                 AnsiConsole.WriteLine();
-                AnsiConsole.MarkupLine($"[slateblue3]{(settings.DryMode ? "Finished Checking Mod Updates" : "Finished Updating mods")}. Press any key to Exit.[/]");
+                AnsiConsole.MarkupLine($"[slateblue3]{(settingsConfig.DryMode ? "Finished Checking Mod Updates" : "Finished Updating mods")}. Press any key to Exit.[/]");
                 Console.ReadKey();
+                return 0;
+            }
+        }
+        public class SearchCommandSettings : CommandSettings
+        {
+            [Description("Query to search for in the manifest.")]
+            [CommandArgument(0, "[QUERY]")]
+            public required string Query { get; set; }
+
+            [Description("Set alternative manifest json url. It must match the RML manifest schema (Advanced)")]
+            [CommandOption("-m|--manifest")]
+            public string? manifest { get; set; }
+        }
+
+        public class SearchCommand : Command<SearchCommandSettings>
+        {
+            public override int Execute([NotNull] CommandContext context, [NotNull] SearchCommandSettings settings)
+            {
+                if (!AnsiConsole.Profile.Capabilities.Interactive)
+                {
+                    AnsiConsole.MarkupLine("[red]Environment does not support interaction.[/]");
+                    return 1;
+                }
+
+                var settingsConfig = new Utils.SettingsConfig
+                {
+                    manifest = settings.manifest!,
+                };
+
+                // try to load settings from file
+                var loadedSettings = Utils.LoadSettings();
+                if (loadedSettings != null)
+                {
+                    AnsiConsole.Status()
+                        .Start("Settings file found, Loading settings...", ctx =>
+                        {
+                            settingsConfig = loadedSettings;
+                            Thread.Sleep(1000);
+                        });
+                };
+
+                settingsConfig.manifest = settingsConfig.manifest ?? Utils.manifest;
+
+                if (string.IsNullOrEmpty(settings.Query))
+                {
+                    AnsiConsole.Write(new Padder(new Markup("[red]No search term provided[/]")).Padding(1, 0));
+                    return 0;
+                }
+
+                AnsiConsole.Status()
+                    .Start($"Searching for {settings.Query}...", ctx =>
+                    {
+                        Thread.Sleep(1000);
+                    });
+
+                var results = Utils.SearchManifest(settings.Query, settingsConfig.manifest).GetAwaiter().GetResult();
+
+                if (results.Count == 0)
+                {
+                    AnsiConsole.WriteLine();
+                    AnsiConsole.Write(new Markup($"[red]No results found for query: {settings.Query}. Press any key to Exit.[/]"));
+                    Console.ReadKey();
+                    return 0;
+                }
+
+                var table = new Table()
+                 .AddColumn(new TableColumn("[cyan]Name[/]"))
+                 .AddColumn(new TableColumn("[cyan]Author[/]"))
+                 .AddColumn(new TableColumn("[cyan]ID[/]"))
+                 .AddColumn(new TableColumn("[cyan]Version[/]"))
+                 .AddColumn(new TableColumn("[cyan]Description[/]"));
+
+                table.ShowRowSeparators();
+
+                if (AnsiConsole.Profile.Capabilities.Links)
+                {
+                    foreach (var result in results)
+                    {
+                        Uri? releaseUrl = null;
+
+                        if (result.Entry.Versions[result.LatestVersion].ReleaseUrl != null)
+                        {
+                            releaseUrl = result.Entry.Versions[result.LatestVersion].ReleaseUrl;
+                        }
+                        else if (result.Entry.Versions[result.LatestVersion].Artifacts.Last().Url.Host.EndsWith("github.com"))
+                        {
+                            Uri uri = result.Entry.Versions[result.LatestVersion].Artifacts.Last().Url;
+                            string path = uri.AbsolutePath;
+                            string repoOwner = path.Split('/')[1];
+                            string repoName = path.Split('/')[2];
+                            string tagOrVersion = path.Split('/')[5];
+
+                            releaseUrl = new Uri($"https://github.com/{repoOwner}/{repoName}/releases/tag/{tagOrVersion}");
+                        }
+                        else if (result.Entry.SourceLocation != null)
+                        {
+                            releaseUrl = result.Entry.SourceLocation;
+                        }
+
+                        table.AddRow(result.Entry.Name, result.AuthorName, result.ID, $"[link={releaseUrl}]{result.LatestVersion}[/]", result.Entry.Description);
+                    }
+                }
+                else
+                {
+                    foreach (var result in results)
+                    {
+                        table.AddRow(result.Entry.Name, result.AuthorName, result.ID, result.LatestVersion, result.Entry.Description);
+                    }
+                }
+
+
+                AnsiConsole.Write(table);
+
                 return 0;
             }
         }

@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
+using System.ServiceModel.Syndication;
+using System.Xml;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Newtonsoft.Json;
@@ -12,7 +14,19 @@ namespace ResoniteModUpdater
 {
   public static class Utils
   {
+    internal class SettingsConfig
+    {
+      public string? ModsFolder { get; set; }
+      public string? Token { get; set; }
+      public bool DryMode { get; set; } = false;
+
+      public string ResoniteModLoaderSource { get; set; } = Utils.ResoniteModLoaderSource;
+
+      public string manifest { get; set; } = Utils.manifest;
+    }
     internal static string SettingsFileName = "settings.json";
+    internal static string ResoniteModLoaderSource = "https://github.com/resonite-modding-group/ResoniteModLoader";
+    internal static string manifest = "https://raw.githubusercontent.com/resonite-modding-group/resonite-mod-manifest/main/manifest.json";
     public static string GetDefaultPath()
     {
       string defaultPath = "";
@@ -29,23 +43,37 @@ namespace ResoniteModUpdater
       return defaultPath;
     }
 
-    internal static void SaveSettings(Settings settings)
+    internal static void SaveSettings(SettingsConfig settings)
     {
-      var settingsJson = JsonConvert.SerializeObject(settings, Formatting.Indented);
+      var settingsJson = JsonConvert.SerializeObject(settings, Newtonsoft.Json.Formatting.Indented);
       var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SettingsFileName);
       File.WriteAllText(settingsFilePath, settingsJson);
     }
 
-    internal static Settings? LoadSettings()
+    internal static SettingsConfig? LoadSettings()
     {
       var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SettingsFileName);
       if (File.Exists(settingsFilePath))
       {
         var settingsJson = File.ReadAllText(settingsFilePath);
-        return JsonConvert.DeserializeObject<Settings>(settingsJson);
+        return JsonConvert.DeserializeObject<SettingsConfig>(settingsJson);
       }
 
       return null;
+    }
+
+    public static string? GetLibraryPath(string folderPath, string libraryFolderName, string dllFileName)
+    {
+      var parentFolderPath = Path.GetDirectoryName(folderPath);
+      if (parentFolderPath == null) return null;
+
+      var librariesFolderPath = Path.Combine(parentFolderPath, libraryFolderName);
+      if (!Directory.Exists(librariesFolderPath)) return null;
+
+      var dllFilePath = Path.Combine(librariesFolderPath, dllFileName);
+      if (!File.Exists(dllFilePath)) return null;
+
+      return dllFilePath;
     }
 
     public static Task<Dictionary<string, string>> GetFiles(string folderPath)
@@ -107,7 +135,7 @@ namespace ResoniteModUpdater
       }
       return Task.FromResult(urlDictionary);
     }
-    public static async Task<int> Download(string dllFile, string url, bool dryMode, string? token)
+    public static async Task<(int, string?)> Download(string dllFile, string url, bool dryMode, string? token)
     {
       HttpClient client = new HttpClient();
       client.DefaultRequestHeaders.Add("User-Agent", "Resonite mod updater");
@@ -130,31 +158,7 @@ namespace ResoniteModUpdater
             // Download and replace the DLL file
             string downloadUrl = asset.browser_download_url;
 
-            // Use the downloadUrl to download the DLL file and replace the existing one
-            client.DefaultRequestHeaders.Add("Accept", "application/octet-stream");
-            byte[] downloadedDllBytes = await client.GetByteArrayAsync(downloadUrl);
-            // Compute the hash of the downloaded DLL
-            using (var md5 = MD5.Create())
-            {
-              byte[] downloadedHash = md5.ComputeHash(downloadedDllBytes);
-              string downloadedHashString = BitConverter.ToString(downloadedHash).Replace("-", string.Empty);
-
-              // Compute the hash of the existing DLL
-              byte[] existingDllBytes = File.ReadAllBytes(dllFile);
-              byte[] existingHash = md5.ComputeHash(existingDllBytes);
-              string existingHashString = BitConverter.ToString(existingHash).Replace("-", string.Empty);
-
-              if (downloadedHashString != existingHashString)
-              {
-                // Hashes are different, replace the DLL
-                if (!dryMode) File.WriteAllBytes(dllFile, downloadedDllBytes);
-                return 0;
-              }
-              else
-              {
-                return 1;
-              }
-            }
+            return await DownloadAndValidateDLL(dllFile, downloadUrl, dryMode);
           }
         }
       }
@@ -165,8 +169,118 @@ namespace ResoniteModUpdater
         goto download;
         // throw new Exception("Access to the resource is forbidden.");
       }
-      return -1;
+      return (-1, "");
     }
 
+    public static async Task<(int, string?)> DownloadFromRSS(string dllFile, string url, bool dryMode)
+    {
+      try
+      {
+        string owner = url.Split('/')[3];
+        string repo = url.Split('/')[4];
+
+        XmlReader r = XmlReader.Create($"https://github.com/{owner}/{repo}/tags.atom");
+        SyndicationFeed tags = SyndicationFeed.Load(r);
+        r.Close();
+
+        if (!tags.Items.Any()) return (-1, null);
+
+        SyndicationItem latest = tags.Items.First();
+        if (latest == null || latest.Title == null) return (-1, "");
+
+        string tag = latest.Links[0].Uri.ToString().Split('/')[7];
+
+        string downloadUrl = $"https://github.com/{owner}/{repo}/releases/download/{tag}/{Path.GetFileName(dllFile)}";
+
+        return await DownloadAndValidateDLL(dllFile, downloadUrl, dryMode);
+      }
+      catch
+      {
+        return (-1, null);
+      }
+    }
+
+    public static async Task<(int, string?)> DownloadAndValidateDLL(string dllFile, string downloadUrl, bool dryMode)
+    {
+      using HttpClient client = new HttpClient();
+      client.DefaultRequestHeaders.Add("Accept", "application/octet-stream");
+
+      // Attempt to download the DLL
+      try
+      {
+        byte[] downloadedDllBytes = await client.GetByteArrayAsync(downloadUrl);
+
+        // Compute the hash of the downloaded DLL
+        byte[] downloadedHash = MD5.HashData(downloadedDllBytes);
+        string downloadedHashString = BitConverter.ToString(downloadedHash).Replace("-", string.Empty);
+
+        // Compute the hash of the existing DLL
+        byte[] existingDllBytes = File.ReadAllBytes(dllFile);
+        byte[] existingHash = MD5.HashData(existingDllBytes);
+        string existingHashString = BitConverter.ToString(existingHash).Replace("-", string.Empty);
+
+        if (downloadedHashString != existingHashString)
+        {
+          // Hashes are different, replace the DLL
+          if (!dryMode) File.WriteAllBytes(dllFile, downloadedDllBytes);
+          return (0, downloadUrl);
+        }
+        else
+        {
+          return (1, null);
+        }
+      }
+      catch (HttpRequestException e)
+      {
+        AnsiConsole.MarkupLine($"Error downloading DLL from {downloadUrl}: {e.Message}");
+        return (-1, null);
+      }
+      catch (IOException e)
+      {
+        AnsiConsole.MarkupLine($"IO error while processing DLL: {e.Message}");
+        return (-1, null);
+      }
+    }
+    public static async Task<List<SearchResult>> SearchManifest(string searchTerm, string manifestUrl)
+    {
+      List<SearchResult> results = new List<SearchResult>();
+
+      string manifestContent = await DownloadManifest(manifestUrl);
+
+      if (string.IsNullOrEmpty(manifestContent)) return results;
+
+      var manifest = JsonConvert.DeserializeObject<ManifestData>(manifestContent);
+
+      if (manifest == null || manifest.Objects == null) return results;
+
+      foreach (var authorKey in manifest.Objects.Values)
+      {
+        foreach (var entryKey in authorKey.Entries)
+        {
+          if (entryKey.Value.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || entryKey.Value.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+          {
+            string authorName = authorKey.Author.Keys.First();
+            var latestVersionKey = entryKey.Value.Versions.Keys.Max();
+            string id = entryKey.Key;
+            results.Add(new SearchResult
+            {
+              Entry = entryKey.Value,
+              ID = id,
+              AuthorName = authorName,
+              LatestVersion = latestVersionKey!,
+              AuthorUrl = authorKey.Author.First().Value.Url,
+            });
+          }
+        }
+      }
+
+      return results;
+    }
+
+    private static async Task<string> DownloadManifest(string url)
+    {
+      using HttpClient client = new HttpClient();
+      return await client.GetStringAsync(url);
+    }
   }
 }
