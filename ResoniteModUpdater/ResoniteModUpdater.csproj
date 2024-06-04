@@ -6,9 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Title>Resonite Mod Updater</Title>
+    <Authors>hazre</Authors>
     <RepositoryUrl>https://github.com/hazre/ResoniteModUpdater</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Authors>$(AssemblyName)</Authors>
+    <AssemblyVersion>2.2.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
