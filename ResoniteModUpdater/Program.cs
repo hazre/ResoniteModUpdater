@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using Newtonsoft.Json;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -73,6 +74,13 @@ namespace ResoniteModUpdater
                     return 1;
                 }
 
+                var settingsConfig = new Utils.SettingsConfig
+                {
+                    ModsFolder = settings.ModsFolder,
+                    Token = settings.Token,
+                    DryMode = settings.DryMode,
+                };
+
                 // try to load settings from file
                 var loadedSettings = Utils.LoadSettings();
                 if (loadedSettings != null)
@@ -80,7 +88,7 @@ namespace ResoniteModUpdater
                     AnsiConsole.Status()
                         .Start("Settings file found, Loading settings...", ctx =>
                         {
-                            settings = loadedSettings;
+                            settingsConfig = loadedSettings;
                             Thread.Sleep(1000);
                         });
                 };
@@ -93,15 +101,15 @@ namespace ResoniteModUpdater
 
                         AnsiConsole.Write(new Padder(new Markup($"[yellow]Arguments {(loadedSettings != null ? "(Loaded from [green]settings.json[/])" : "")}[/]")).Padding(0, 0));
 
-                        if (!string.IsNullOrEmpty(settings.ModsFolder)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] ModsFolder Found, skipping Prompt...")).Padding(1, 0));
-                        if (!string.IsNullOrEmpty(settings.Token)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] Github Token Found")).Padding(1, 0));
-                        if (settings.DryMode) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] Dry run mode")).Padding(1, 0));
+                        if (!string.IsNullOrEmpty(settingsConfig.ModsFolder)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] ModsFolder Found, skipping Prompt...")).Padding(1, 0));
+                        if (!string.IsNullOrEmpty(settingsConfig.Token)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] Github Token Found")).Padding(1, 0));
+                        if (settingsConfig.DryMode) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] Dry run mode")).Padding(1, 0));
                     });
 
-                settings.ModsFolder ??= AskPath();
+                settingsConfig.ModsFolder ??= AskPath();
                 AnsiConsole.WriteLine();
 
-                var urls = Utils.GetFiles(settings.ModsFolder).GetAwaiter().GetResult();
+                var urls = Utils.GetFiles(settingsConfig.ModsFolder).GetAwaiter().GetResult();
                 AnsiConsole.Status()
                     .Start("Finding Mods...", ctx =>
                     {
@@ -126,7 +134,7 @@ namespace ResoniteModUpdater
                 AnsiConsole.Write(new Padder(new Markup($"[orange1]Mods ({urls.Count})[/]")).Padding(0, 0));
 
                 AnsiConsole.Status()
-                    .Start(settings.DryMode ? "Checking for Mod Updates..." : "Updating Mods...", ctx =>
+                    .Start(settingsConfig.DryMode ? "Checking for Mod Updates..." : "Updating Mods...", ctx =>
                     {
                         Thread.Sleep(1000);
                     });
@@ -146,17 +154,17 @@ namespace ResoniteModUpdater
                             string dllFile = url.Key;
                             string urlValue = url.Value;
                             int result;
-                            if (!string.IsNullOrEmpty(settings.Token))
+                            if (!string.IsNullOrEmpty(settingsConfig.Token))
                             {
-                                result = Utils.Download(dllFile, urlValue, settings.DryMode, settings.Token).GetAwaiter().GetResult();
+                                result = Utils.Download(dllFile, urlValue, settingsConfig.DryMode, settingsConfig.Token).GetAwaiter().GetResult();
                             }
                             else
                             {
-                                result = Utils.DownloadFromRSS(dllFile, urlValue, settings.DryMode).GetAwaiter().GetResult();
+                                result = Utils.DownloadFromRSS(dllFile, urlValue, settingsConfig.DryMode).GetAwaiter().GetResult();
                             }
                             var text = result switch
                             {
-                                0 => new List<string> { "+", settings.DryMode ? "[green]Update Available[/]" : "[green]Updated[/]" },
+                                0 => new List<string> { "+", settingsConfig.DryMode ? "[green]Update Available[/]" : "[green]Updated[/]" },
                                 1 => new List<string> { "-", "[dim]Up To Date[/]" },
                                 _ => new List<string> { "/", "[red]Something went Wrong[/]" },
                             };
@@ -165,19 +173,56 @@ namespace ResoniteModUpdater
                         }
                     });
 
+                string resoniteModLoaderDLL = "ResoniteModLoader.dll";
+                string? resoniteModLoaderPath = Utils.GetLibraryPath(settingsConfig.ModsFolder, "Libraries", resoniteModLoaderDLL);
+                if (!string.IsNullOrEmpty(resoniteModLoaderPath))
+                {
+                    int result = Utils.DownloadFromRSS(resoniteModLoaderPath, settingsConfig.ResoniteModLoaderSource, true).GetAwaiter().GetResult();
+                    if (result == 0)
+                    {
+                        bool updateResoniteModLoader = AnsiConsole.Confirm($"There is a update available for {resoniteModLoaderDLL}, Would you like to update it?");
+                        if (updateResoniteModLoader)
+                        {
+                            result = Utils.DownloadFromRSS(resoniteModLoaderPath, settingsConfig.ResoniteModLoaderSource, false).GetAwaiter().GetResult();
+                        }
+                    }
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"[red]{resoniteModLoaderDLL} not found. Skipping..[/]");
+                }
+
+                string harmonyDLL = "0Harmony.dll";
+                string? harmonyPath = Utils.GetLibraryPath(settingsConfig.ModsFolder, "rml_libs", harmonyDLL);
+                if (!string.IsNullOrEmpty(harmonyPath))
+                {
+                    int result = Utils.DownloadFromRSS(harmonyPath, settingsConfig.ResoniteModLoaderSource, true).GetAwaiter().GetResult();
+                    if (result == 0)
+                    {
+                        bool updateHarmony = AnsiConsole.Confirm($"There is a update available for {harmonyDLL}, Would you like to update it?");
+                        if (updateHarmony)
+                        {
+                            result = Utils.DownloadFromRSS(harmonyPath, settingsConfig.ResoniteModLoaderSource, false).GetAwaiter().GetResult();
+                        }
+                    }
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"[red]{harmonyDLL} not found. Skipping..[/]");
+                }
+
                 if (loadedSettings == null)
                 {
                     // Ask user if they want to save settings
                     bool saveSettings = AnsiConsole.Confirm("Do you want to save the current settings?");
                     if (saveSettings)
                     {
-                        // Save settings to file
-                        Utils.SaveSettings(settings);
+                        Utils.SaveSettings(settingsConfig);
                     }
                 }
 
                 AnsiConsole.WriteLine();
-                AnsiConsole.MarkupLine($"[slateblue3]{(settings.DryMode ? "Finished Checking Mod Updates" : "Finished Updating mods")}. Press any key to Exit.[/]");
+                AnsiConsole.MarkupLine($"[slateblue3]{(settingsConfig.DryMode ? "Finished Checking Mod Updates" : "Finished Updating mods")}. Press any key to Exit.[/]");
                 Console.ReadKey();
                 return 0;
             }
@@ -190,14 +235,38 @@ namespace ResoniteModUpdater
 
             [Description("Set alternative manifest json url. It must match the RML manifest schema (Advanced)")]
             [CommandOption("-m|--manifest")]
-            [DefaultValue("https://raw.githubusercontent.com/resonite-modding-group/resonite-mod-manifest/main/manifest.json")]
-            public required string manifest { get; set; }
+            public string? manifest { get; set; }
         }
 
         public class SearchCommand : Command<SearchCommandSettings>
         {
             public override int Execute([NotNull] CommandContext context, [NotNull] SearchCommandSettings settings)
             {
+                if (!AnsiConsole.Profile.Capabilities.Interactive)
+                {
+                    AnsiConsole.MarkupLine("[red]Environment does not support interaction.[/]");
+                    return 1;
+                }
+
+                var settingsConfig = new Utils.SettingsConfig
+                {
+                    manifest = settings.manifest!,
+                };
+
+                // try to load settings from file
+                var loadedSettings = Utils.LoadSettings();
+                if (loadedSettings != null)
+                {
+                    AnsiConsole.Status()
+                        .Start("Settings file found, Loading settings...", ctx =>
+                        {
+                            settingsConfig = loadedSettings;
+                            Thread.Sleep(1000);
+                        });
+                };
+
+                settingsConfig.manifest = settingsConfig.manifest ?? Utils.manifest;
+
                 if (string.IsNullOrEmpty(settings.Query))
                 {
                     AnsiConsole.Write(new Padder(new Markup("[red]No search term provided[/]")).Padding(1, 0));
@@ -210,7 +279,7 @@ namespace ResoniteModUpdater
                         Thread.Sleep(1000);
                     });
 
-                var results = Utils.SearchManifest(settings.Query, settings.manifest).GetAwaiter().GetResult();
+                var results = Utils.SearchManifest(settings.Query, settingsConfig.manifest).GetAwaiter().GetResult();
 
                 if (results.Count == 0)
                 {

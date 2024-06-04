@@ -14,7 +14,19 @@ namespace ResoniteModUpdater
 {
   public static class Utils
   {
+    internal class SettingsConfig
+    {
+      public string? ModsFolder { get; set; }
+      public string? Token { get; set; }
+      public bool DryMode { get; set; } = false;
+
+      public string ResoniteModLoaderSource { get; set; } = Utils.ResoniteModLoaderSource;
+
+      public string manifest { get; set; } = Utils.manifest;
+    }
     internal static string SettingsFileName = "settings.json";
+    internal static string ResoniteModLoaderSource = "https://github.com/resonite-modding-group/ResoniteModLoader";
+    internal static string manifest = "https://raw.githubusercontent.com/resonite-modding-group/resonite-mod-manifest/main/manifest.json";
     public static string GetDefaultPath()
     {
       string defaultPath = "";
@@ -31,23 +43,37 @@ namespace ResoniteModUpdater
       return defaultPath;
     }
 
-    internal static void SaveSettings(Settings settings)
+    internal static void SaveSettings(SettingsConfig settings)
     {
       var settingsJson = JsonConvert.SerializeObject(settings, Newtonsoft.Json.Formatting.Indented);
       var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SettingsFileName);
       File.WriteAllText(settingsFilePath, settingsJson);
     }
 
-    internal static Settings? LoadSettings()
+    internal static SettingsConfig? LoadSettings()
     {
       var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SettingsFileName);
       if (File.Exists(settingsFilePath))
       {
         var settingsJson = File.ReadAllText(settingsFilePath);
-        return JsonConvert.DeserializeObject<Settings>(settingsJson);
+        return JsonConvert.DeserializeObject<SettingsConfig>(settingsJson);
       }
 
       return null;
+    }
+
+    public static string? GetLibraryPath(string folderPath, string libraryFolderName, string dllFileName)
+    {
+      var parentFolderPath = Path.GetDirectoryName(folderPath);
+      if (parentFolderPath == null) return null;
+
+      var librariesFolderPath = Path.Combine(parentFolderPath, libraryFolderName);
+      if (!Directory.Exists(librariesFolderPath)) return null;
+
+      var dllFilePath = Path.Combine(librariesFolderPath, dllFileName);
+      if (!File.Exists(dllFilePath)) return null;
+
+      return dllFilePath;
     }
 
     public static Task<Dictionary<string, string>> GetFiles(string folderPath)
@@ -154,6 +180,8 @@ namespace ResoniteModUpdater
       XmlReader r = XmlReader.Create($"https://github.com/{owner}/{repo}/tags.atom");
       SyndicationFeed tags = SyndicationFeed.Load(r);
       r.Close();
+
+      if (!tags.Items.Any()) return -1;
 
       SyndicationItem latest = tags.Items.First();
       if (latest == null || latest.Title == null) return -1;
