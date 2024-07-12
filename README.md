@@ -1,11 +1,11 @@
 # Resonite Mod Updater CLI
 
-**ResoniteModUpdater** is a command-line tool that helps you update mods for Resonite. Updates only mods that have that have a github Link variable.
+**ResoniteModUpdater** is a command-line tool that helps you update mods for Resonite. Updates only mods that have a GitHub Link variable.
 > [!WARNING]
-> Does not work with monorepos with multiple mods nor with non github repositories.
+> Does not work with monorepos with multiple mods nor with non GitHub repositories.
 
 ## Prerequisites
-- Have .Net 7.0 or **higher** Installed (SDK or just runtime)
+- Have .NET 7.0 or **higher** Installed (SDK or just runtime)
   - Installer: https://dotnet.microsoft.com/en-us/download/dotnet/7.0
   - Winget: `winget install Microsoft.DotNet.Runtime.7`
 
@@ -15,7 +15,7 @@
 
 1. Download [ResoniteModUpdater_win_x64.zip](https://github.com/hazre/ResoniteModUpdater/releases/latest/download/ResoniteModUpdater_win_x64.zip) or [ResoniteModUpdater_linux_x64.zip](https://github.com/hazre/ResoniteModUpdater/releases/latest/download/ResoniteModUpdater_linux_x64.zip)
 2. Extract it anywhere.
-3. Double click to Start or Run from terminal.
+3. Double click to start or run from terminal.
 
 ## Usage
 
@@ -81,7 +81,7 @@ Here is an example of what the `settings.json` file might look like:
 ### Fields
 
 - `ModsFolder`: The path to the Resonite mods folder.
-- `Token`: GitHub authentication token to allow downloading from GitHub's official API as an alternative to using Github's RSS feed. This option is optional and can be used if preferred over the RSS feed method.
+- `Token`: GitHub authentication token to allow downloading from GitHub's official API as an alternative to using GitHub's RSS feed. This option is optional and can be used if preferred over the RSS feed method.
 - `DryMode`: A boolean value that enables or disables dry run mode. When enabled, the tool checks for mod updates without installing them.
 - `ResoniteModLoaderSource`: Allows you to change where `ResoniteModLoader.dll` and `0Harmony.dll` are updated from.
 -  `manifest`: It let's you aet alternative manifest json url. It must match the ResoniteModLoader manifest schema.
