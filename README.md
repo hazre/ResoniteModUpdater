@@ -2,7 +2,7 @@
 
 **ResoniteModUpdater** is a command-line tool that helps you update mods for Resonite. Updates only mods that have that have a github Link variable.
 > [!WARNING]
-> Does not work with monorepos with multiple mods nor with non github repositorys.
+> Does not work with monorepos with multiple mods nor with non github repositories.
 
 ## Prerequisites
 - Have .Net 7.0 or **higher** Installed (SDK or just runtime)
