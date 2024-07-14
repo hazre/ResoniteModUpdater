@@ -8,25 +8,24 @@ using Mono.Cecil.Cil;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Spectre.Console;
-using static ResoniteModUpdater.Program.DefaultCommand;
 
 namespace ResoniteModUpdater
 {
   public static class Utils
   {
-    internal class SettingsConfig
+    public class SettingsConfig
     {
       public string? ModsFolder { get; set; }
       public string? Token { get; set; }
-      public bool DryMode { get; set; } = false;
-
-      public string ResoniteModLoaderSource { get; set; } = Utils.ResoniteModLoaderSource;
-
-      public string manifest { get; set; } = Utils.manifest;
+      public bool DryMode { get; set; }
+      public string? ResoniteModLoaderSource { get; set; }
+      public string? Manifest { get; set; }
     }
-    internal static string SettingsFileName = "settings.json";
-    internal static string ResoniteModLoaderSource = "https://github.com/resonite-modding-group/ResoniteModLoader";
-    internal static string manifest = "https://raw.githubusercontent.com/resonite-modding-group/resonite-mod-manifest/main/manifest.json";
+
+    private const string SettingsFileName = "settings.json";
+    public const string ResoniteModLoaderSource = "https://github.com/resonite-modding-group/ResoniteModLoader";
+    public const string Manifest = "https://raw.githubusercontent.com/resonite-modding-group/resonite-mod-manifest/main/manifest.json";
+
     public static string GetDefaultPath()
     {
       string defaultPath = "";
@@ -43,14 +42,14 @@ namespace ResoniteModUpdater
       return defaultPath;
     }
 
-    internal static void SaveSettings(SettingsConfig settings)
+    public static void SaveSettings(SettingsConfig settings)
     {
       var settingsJson = JsonConvert.SerializeObject(settings, Newtonsoft.Json.Formatting.Indented);
       var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SettingsFileName);
       File.WriteAllText(settingsFilePath, settingsJson);
     }
 
-    internal static SettingsConfig? LoadSettings()
+    public static SettingsConfig? LoadSettings()
     {
       var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SettingsFileName);
       if (File.Exists(settingsFilePath))
@@ -71,125 +70,118 @@ namespace ResoniteModUpdater
       if (!Directory.Exists(librariesFolderPath)) return null;
 
       var dllFilePath = Path.Combine(librariesFolderPath, dllFileName);
-      if (!File.Exists(dllFilePath)) return null;
-
-      return dllFilePath;
+      return File.Exists(dllFilePath) ? dllFilePath : null;
     }
 
-    public static Task<Dictionary<string, string>> GetFiles(string folderPath)
+    public static Dictionary<string, string?> GetFiles(string folderPath)
     {
       string[] dllFiles = Directory.GetFiles(folderPath, "*.dll");
-
-      var urlDictionary = new Dictionary<string, string>();
+      var urlDictionary = new Dictionary<string, string?>();
 
       foreach (string dllFile in dllFiles)
       {
-        if (Path.GetFileName(dllFile).StartsWith("_")) continue;
-        AssemblyDefinition assembly;
+
         try
         {
-          assembly = AssemblyDefinition.ReadAssembly(dllFile);
+          using var assembly = AssemblyDefinition.ReadAssembly(dllFile);
+          var linkProperty = assembly.MainModule.Types
+              .Where(t => t.BaseType?.Name == "ResoniteMod")
+              .SelectMany(t => t.Properties)
+              .FirstOrDefault(p => p.Name == "Link");
+
+          if (linkProperty?.GetMethod?.HasBody == true)
+          {
+            var url = linkProperty.GetMethod.Body.Instructions
+                .Where(i => i.OpCode == OpCodes.Ldstr)
+                .Select(i => i.Operand as string)
+                .FirstOrDefault(u => Uri.TryCreate(u, UriKind.Absolute, out Uri? uri) &&
+                                     (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+                                     uri.Host.EndsWith("github.com") &&
+                                     uri.ToString().TrimEnd('/').Split('/').Length > 4);
+
+
+            if (Path.GetFileName(dllFile).StartsWith("_")) url = "_";
+            urlDictionary[dllFile] = url;
+            assembly?.Dispose();
+          }
         }
         catch (Exception ex)
         {
           AnsiConsole.MarkupLine($"{Path.GetFileName(dllFile)}: [red]{ex.Message}[/]");
-          continue;
-        }
-        var types = assembly.MainModule.Types;
-
-        PropertyDefinition? linkProperty = null;
-        foreach (var type in types)
-        {
-          if (type.BaseType != null && type.BaseType.Name == "ResoniteMod")
-          {
-            linkProperty = type.Properties.FirstOrDefault(p => p.Name == "Link");
-            if (linkProperty != null)
-            {
-              break;
-            }
-          }
-        }
-
-        if (linkProperty != null)
-        {
-          var getterMethod = linkProperty.GetMethod;
-          if (getterMethod.HasBody)
-          {
-            var instructions = getterMethod.Body.Instructions;
-            foreach (var instruction in instructions)
-            {
-              if (instruction.OpCode == OpCodes.Ldstr)
-              {
-                string? url = instruction.Operand as string;
-                if (Uri.TryCreate(url, UriKind.Absolute, out Uri? uriResult)
-                    && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps)
-                    && uriResult.Host.EndsWith("github.com") && uriResult.ToString().TrimEnd('/').Split('/').Length > 4)
-                {
-                  urlDictionary[dllFile] = url;
-                  assembly?.Dispose();
-                }
-              }
-            }
-          }
         }
       }
-      return Task.FromResult(urlDictionary);
+
+      var sortedUrlDictionary = urlDictionary.OrderBy(pair => pair.Key).ToDictionary(pair => pair.Key, pair => pair.Value);
+
+      return sortedUrlDictionary;
     }
+
     public static async Task<(int, string?)> Download(string dllFile, string url, bool dryMode, string? token)
     {
       HttpClient client = new HttpClient();
       client.DefaultRequestHeaders.Add("User-Agent", "Resonite mod updater");
       if (token != null) client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-      download:
-      string dl = $"https://api.github.com/repos/{url.Split('/')[3]}/{url.Split('/')[4]}/releases/latest";
       client.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
-      HttpResponseMessage response = await client.GetAsync(dl);
-      if (response.IsSuccessStatusCode)
-      {
-        string responseBody = await response.Content.ReadAsStringAsync();
-        dynamic release = JsonConvert.DeserializeObject(responseBody)!;
-        string tagName = release.tag_name;
-        JArray assets = release.assets;
-        foreach (dynamic asset in assets)
-        {
-          string fileName = asset.name;
-          if (fileName == Path.GetFileName(dllFile))
-          {
-            // Download and replace the DLL file
-            string downloadUrl = asset.browser_download_url;
 
-            return await DownloadAndValidateDLL(dllFile, downloadUrl, dryMode);
+      int retryCount = 0;
+      while (true)
+      {
+        string apiUrl = $"https://api.github.com/repos/{url.Split('/')[3]}/{url.Split('/')[4]}/releases/latest";
+        var response = await client.GetAsync(apiUrl);
+
+        if (response.IsSuccessStatusCode)
+        {
+          var responseBody = await response.Content.ReadAsStringAsync();
+          dynamic release = JsonConvert.DeserializeObject(responseBody)!;
+          JArray assets = release.assets;
+
+          foreach (dynamic asset in assets)
+          {
+            if (asset.name == Path.GetFileName(dllFile))
+            {
+              string downloadUrl = asset.browser_download_url;
+
+              return await DownloadAndValidateDLL(dllFile, downloadUrl, dryMode);
+            }
           }
         }
+        else if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+          AnsiConsole.MarkupLine($"Attempt {retryCount + 1}: Access to the resource is forbidden. Retrying in 1 minute...");
+          retryCount++;
+          if (retryCount > 3)
+          {
+            throw new Exception("Access to the resource is forbidden after multiple attempts.");
+          }
+          await Task.Delay(TimeSpan.FromMinutes(1));
+          continue;
+        }
+        else if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+          throw new Exception("Invalid token provided");
+        }
+
+        return (3, null);
       }
-      else if (response.StatusCode == HttpStatusCode.Forbidden)
-      {
-        AnsiConsole.MarkupLine("Access to the resource is forbidden. Retrying in 1 minute...");
-        await Task.Delay(TimeSpan.FromMinutes(1));
-        goto download;
-        // throw new Exception("Access to the resource is forbidden.");
-      }
-      return (-1, "");
     }
 
     public static async Task<(int, string?)> DownloadFromRSS(string dllFile, string url, bool dryMode)
     {
       try
       {
-        string owner = url.Split('/')[3];
-        string repo = url.Split('/')[4];
+        string[] urlParts = url.Split('/');
+        string owner = urlParts[3];
+        string repo = urlParts[4];
 
-        XmlReader r = XmlReader.Create($"https://github.com/{owner}/{repo}/tags.atom");
-        SyndicationFeed tags = SyndicationFeed.Load(r);
-        r.Close();
+        using var reader = XmlReader.Create($"https://github.com/{owner}/{repo}/tags.atom");
+        var tags = SyndicationFeed.Load(reader);
 
-        if (!tags.Items.Any()) return (-1, null);
+        if (!tags.Items.Any()) return (3, null);
 
-        SyndicationItem latest = tags.Items.First();
-        if (latest == null || latest.Title == null) return (-1, "");
+        var latest = tags.Items.First();
+        if (latest?.Title == null) return (3, null);
 
         string tag = latest.Links[0].Uri.ToString().Split('/')[7];
-
         string downloadUrl = $"https://github.com/{owner}/{repo}/releases/download/{tag}/{Path.GetFileName(dllFile)}";
 
         return await DownloadAndValidateDLL(dllFile, downloadUrl, dryMode);
@@ -200,28 +192,21 @@ namespace ResoniteModUpdater
       }
     }
 
-    public static async Task<(int, string?)> DownloadAndValidateDLL(string dllFile, string downloadUrl, bool dryMode)
+    private static async Task<(int, string?)> DownloadAndValidateDLL(string dllFile, string downloadUrl, bool dryMode)
     {
-      using HttpClient client = new HttpClient();
+      using var client = new HttpClient();
       client.DefaultRequestHeaders.Add("Accept", "application/octet-stream");
 
-      // Attempt to download the DLL
       try
       {
         byte[] downloadedDllBytes = await client.GetByteArrayAsync(downloadUrl);
-
-        // Compute the hash of the downloaded DLL
-        byte[] downloadedHash = MD5.HashData(downloadedDllBytes);
-        string downloadedHashString = BitConverter.ToString(downloadedHash).Replace("-", string.Empty);
-
-        // Compute the hash of the existing DLL
         byte[] existingDllBytes = File.ReadAllBytes(dllFile);
-        byte[] existingHash = MD5.HashData(existingDllBytes);
-        string existingHashString = BitConverter.ToString(existingHash).Replace("-", string.Empty);
+
+        string downloadedHashString = ComputeHash(downloadedDllBytes);
+        string existingHashString = ComputeHash(existingDllBytes);
 
         if (downloadedHashString != existingHashString)
         {
-          // Hashes are different, replace the DLL
           if (!dryMode) File.WriteAllBytes(dllFile, downloadedDllBytes);
           return (0, downloadUrl);
         }
@@ -230,34 +215,35 @@ namespace ResoniteModUpdater
           return (1, null);
         }
       }
-      catch (HttpRequestException e)
+      catch
       {
-        AnsiConsole.MarkupLine($"Error downloading DLL from {downloadUrl}: {e.Message}");
-        return (-1, null);
-      }
-      catch (IOException e)
-      {
-        AnsiConsole.MarkupLine($"IO error while processing DLL: {e.Message}");
         return (-1, null);
       }
     }
+
+    private static string ComputeHash(byte[] data)
+    {
+      using var md5 = MD5.Create();
+      return BitConverter.ToString(md5.ComputeHash(data)).Replace("-", string.Empty);
+    }
+
     public static async Task<List<SearchResult>> SearchManifest(string searchTerm, string manifestUrl)
     {
-      List<SearchResult> results = new List<SearchResult>();
-
+      var results = new List<SearchResult>();
       string manifestContent = await DownloadManifest(manifestUrl);
 
       if (string.IsNullOrEmpty(manifestContent)) return results;
 
       var manifest = JsonConvert.DeserializeObject<ManifestData>(manifestContent);
 
-      if (manifest == null || manifest.Objects == null) return results;
+      if (manifest?.Objects == null) return results;
 
       foreach (var authorKey in manifest.Objects.Values)
       {
         foreach (var entryKey in authorKey.Entries)
         {
-          if (entryKey.Value.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || entryKey.Value.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+          if (entryKey.Value.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+              entryKey.Value.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
           {
             string authorName = authorKey.Author.Keys.First();
             var latestVersionKey = entryKey.Value.Versions.Keys.Max();
@@ -281,6 +267,86 @@ namespace ResoniteModUpdater
     {
       using HttpClient client = new HttpClient();
       return await client.GetStringAsync(url);
+    }
+
+    public static void NotifyOverriddenSettings(List<string> overriddenSettings)
+    {
+      if (overriddenSettings.Any())
+      {
+        AnsiConsole.MarkupLine("[yellow]The following settings were overridden by command-line arguments:[/]");
+        foreach (var setting in overriddenSettings)
+        {
+          AnsiConsole.Write(new Padder(new Markup($"[yellow]+[/] {setting}")).Padding(1, 0));
+        }
+      }
+    }
+
+    public static void CheckAndSaveOverriddenSettings(SettingsConfig settingsConfig, bool loadedSettings, bool overriddenSettings)
+    {
+
+      if (overriddenSettings)
+      {
+        bool updateSettings = AnsiConsole.Confirm("Do you want to update your saved settings with the overridden values?");
+        if (updateSettings)
+        {
+          SaveSettings(settingsConfig);
+          AnsiConsole.MarkupLine("[green]Settings updated and saved successfully.[/]");
+        }
+      }
+      else if (loadedSettings)
+      {
+        bool saveSettings = AnsiConsole.Confirm("No settings file found. Do you want to save the current settings?");
+        if (saveSettings)
+        {
+          SaveSettings(settingsConfig);
+          AnsiConsole.MarkupLine("[green]Settings saved successfully.[/]");
+        }
+      }
+    }
+
+    public static (SettingsConfig, List<string>) OverrideSettings<TCliSettings>(SettingsConfig config, TCliSettings cliSettings)
+    {
+      var overriddenSettings = new List<string>();
+      var configProperties = typeof(SettingsConfig).GetProperties();
+      var cliProperties = typeof(TCliSettings).GetProperties();
+
+      foreach (var cliProp in cliProperties)
+      {
+        var configProp = configProperties.FirstOrDefault(p => p.Name == cliProp.Name);
+        if (configProp != null)
+        {
+          var newValue = cliProp.GetValue(cliSettings);
+          if (IsValueProvided(newValue))
+          {
+            var oldValue = configProp.GetValue(config);
+            if (!Equals(oldValue, newValue))
+            {
+              configProp.SetValue(config, newValue);
+              // Special handling for the Token property
+              if (cliProp.Name == nameof(SettingsConfig.Token))
+              {
+                newValue = "********";
+              }
+
+              string str1 = $"{cliProp.Name} [red]{oldValue}[/] -> [green]{newValue}[/]";
+              string str2 = $"{cliProp.Name} [green]{newValue}[/]";
+              overriddenSettings.Add(oldValue != null ? str1 : str2);
+            }
+          }
+        }
+      }
+
+      return (config, overriddenSettings);
+    }
+
+    private static bool IsValueProvided(object? value)
+    {
+      return value switch
+      {
+        null => false,
+        string s => !string.IsNullOrEmpty(s),
+        _ => true
+      };
     }
   }
 }
