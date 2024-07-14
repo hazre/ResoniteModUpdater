@@ -73,12 +73,7 @@ namespace ResoniteModUpdater
                     return 1;
                 }
 
-                var settingsConfig = new Utils.SettingsConfig
-                {
-                    ModsFolder = settings.ModsFolder,
-                    Token = settings.Token,
-                    DryMode = settings.DryMode,
-                };
+                var settingsConfig = new Utils.SettingsConfig();
 
                 // try to load settings from file
                 var loadedSettings = Utils.LoadSettings();
@@ -92,13 +87,19 @@ namespace ResoniteModUpdater
                         });
                 };
 
+                // Override with command-line arguments if provided
+                var overriddenSettings = Utils.OverrideSettings(settingsConfig, settings);
+
+                // Notify user about overridden settings
+                Utils.NotifyOverriddenSettings(overriddenSettings);
+
                 AnsiConsole.Status()
                     .Start("Starting...", ctx =>
                     {
                         Thread.Sleep(1000);
                         ctx.Status("Checking Arguments...");
 
-                        AnsiConsole.Write(new Padder(new Markup($"[yellow]Arguments {(loadedSettings != null ? "(Loaded from [green]settings.json[/])" : "")}[/]")).Padding(0, 0));
+                        AnsiConsole.Write(new Padder(new Markup($"[yellow]Arguments[/]")).Padding(0, 0));
 
                         if (!string.IsNullOrEmpty(settingsConfig.ModsFolder)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] ModsFolder Found, skipping Prompt...")).Padding(1, 0));
                         if (!string.IsNullOrEmpty(settingsConfig.Token)) AnsiConsole.Write(new Padder(new Markup("[yellow]+[/] Github Token Found")).Padding(1, 0));
@@ -218,15 +219,7 @@ namespace ResoniteModUpdater
                     AnsiConsole.MarkupLine($"[red]{harmonyDLL} not found. Skipping..[/]");
                 }
 
-                if (loadedSettings == null)
-                {
-                    // Ask user if they want to save settings
-                    bool saveSettings = AnsiConsole.Confirm("Do you want to save the current settings?");
-                    if (saveSettings)
-                    {
-                        Utils.SaveSettings(settingsConfig);
-                    }
-                }
+                Utils.CheckAndSaveOverriddenSettings(overriddenSettings, settingsConfig, loadedSettings);
 
                 AnsiConsole.WriteLine();
                 AnsiConsole.MarkupLine($"[slateblue3]{(settingsConfig.DryMode ? "Finished Checking Mod Updates" : "Finished Updating mods")}. Press any key to Exit.[/]");

@@ -282,5 +282,80 @@ namespace ResoniteModUpdater
       using HttpClient client = new HttpClient();
       return await client.GetStringAsync(url);
     }
+
+    internal static void NotifyOverriddenSettings(List<string> overriddenSettings)
+    {
+      if (overriddenSettings.Any())
+      {
+        AnsiConsole.MarkupLine("[yellow]The following settings were overridden by command-line arguments:[/]");
+        foreach (var setting in overriddenSettings)
+        {
+          AnsiConsole.MarkupLine($"[green]- {setting}[/]");
+        }
+      }
+    }
+
+    internal static void CheckAndSaveOverriddenSettings(List<string> overriddenSettings, SettingsConfig settingsConfig, SettingsConfig? loadedSettings)
+    {
+      if (overriddenSettings.Any())
+      {
+        bool updateSettings = AnsiConsole.Confirm("Do you want to update your saved settings with the overridden values?");
+        if (updateSettings)
+        {
+          SaveSettings(settingsConfig);
+          AnsiConsole.MarkupLine("[green]Settings updated and saved successfully.[/]");
+        }
+      }
+      else if (loadedSettings == null)
+      {
+        bool saveSettings = AnsiConsole.Confirm("No settings file found. Do you want to save the current settings?");
+        if (saveSettings)
+        {
+          SaveSettings(settingsConfig);
+          AnsiConsole.MarkupLine("[green]Settings saved successfully.[/]");
+        }
+      }
+    }
+
+    internal static List<string> OverrideSettings<TCliSettings>(SettingsConfig config, TCliSettings cliSettings)
+    {
+      var overriddenSettings = new List<string>();
+      var configProperties = typeof(SettingsConfig).GetProperties();
+      var cliProperties = typeof(TCliSettings).GetProperties();
+
+      foreach (var cliProp in cliProperties)
+      {
+        var configProp = configProperties.FirstOrDefault(p => p.Name == cliProp.Name);
+        if (configProp != null && configProp.CanWrite)
+        {
+          var cliValue = cliProp.GetValue(cliSettings)!;
+          if (IsValueProvided(cliValue))
+          {
+            var oldValue = configProp.GetValue(config);
+            if (!Equals(oldValue, cliValue))
+            {
+              configProp.SetValue(config, cliValue);
+              overriddenSettings.Add($"{cliProp.Name}: {oldValue} -> {cliValue}");
+            }
+          }
+        }
+      }
+
+      return overriddenSettings;
+    }
+
+    internal static bool IsValueProvided(object value)
+    {
+      if (value == null)
+        return false;
+
+      if (value is string stringValue)
+        return !string.IsNullOrEmpty(stringValue);
+
+      if (value is bool)
+        return true;
+
+      return true;
+    }
   }
 }
