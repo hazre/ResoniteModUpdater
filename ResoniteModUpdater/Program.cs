@@ -107,7 +107,6 @@ namespace ResoniteModUpdater
                     });
 
                 settingsConfig.ModsFolder ??= AskPath();
-                AnsiConsole.WriteLine();
 
                 var urls = Utils.GetFiles(settingsConfig.ModsFolder).GetAwaiter().GetResult();
                 AnsiConsole.Status()
@@ -132,6 +131,7 @@ namespace ResoniteModUpdater
 
 
                 AnsiConsole.Write(new Padder(new Markup($"[orange1]Mods ({urls.Count})[/]")).Padding(0, 0));
+                AnsiConsole.WriteLine();
 
                 AnsiConsole.Status()
                     .Start(settingsConfig.DryMode ? "Checking for Mod Updates..." : "Updating Mods...", ctx =>
