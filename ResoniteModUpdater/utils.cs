@@ -119,7 +119,7 @@ namespace ResoniteModUpdater
     public static async Task<(int, string?)> Download(string dllFile, string url, bool dryMode, string? token)
     {
       HttpClient client = new HttpClient();
-      client.DefaultRequestHeaders.Add("User-Agent", "Resonite mod updater");
+      client.DefaultRequestHeaders.Add("User-Agent", Strings.Application.AppName);
       if (token != null) client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
       client.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
 
@@ -147,18 +147,18 @@ namespace ResoniteModUpdater
         }
         else if (response.StatusCode == HttpStatusCode.Forbidden)
         {
-          AnsiConsole.MarkupLine($"Attempt {retryCount + 1}: Access to the resource is forbidden. Retrying in 1 minute...");
+          AnsiConsole.MarkupLine(string.Format(Strings.Errors.ForbiddenRetry, retryCount + 1));
           retryCount++;
           if (retryCount > 3)
           {
-            throw new Exception("Access to the resource is forbidden after multiple attempts.");
+            throw new Exception(Strings.Errors.Forbidden);
           }
           await Task.Delay(TimeSpan.FromMinutes(1));
           continue;
         }
         else if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
-          throw new Exception("Invalid token provided");
+          throw new Exception(Strings.Errors.InvalidToken);
         }
 
         return (3, null);
@@ -273,7 +273,7 @@ namespace ResoniteModUpdater
     {
       if (overriddenSettings.Any())
       {
-        AnsiConsole.MarkupLine("[yellow]The following settings were overridden by command-line arguments:[/]");
+        AnsiConsole.MarkupLine($"[yellow]{Strings.Messages.OverriddenSettings}[/]");
         foreach (var setting in overriddenSettings)
         {
           AnsiConsole.Write(new Padder(new Markup($"[yellow]+[/] {setting}")).Padding(1, 0));
@@ -286,20 +286,20 @@ namespace ResoniteModUpdater
 
       if (overriddenSettings)
       {
-        bool updateSettings = AnsiConsole.Confirm("Do you want to update your saved settings with the overridden values?");
+        bool updateSettings = AnsiConsole.Confirm(Strings.Prompts.SaveOverriddenSettings);
         if (updateSettings)
         {
           SaveSettings(settingsConfig);
-          AnsiConsole.MarkupLine("[green]Settings updated and saved successfully.[/]");
+          AnsiConsole.MarkupLine($"[green]{Strings.Messages.SettingsUpdated}[/]");
         }
       }
       else if (loadedSettings)
       {
-        bool saveSettings = AnsiConsole.Confirm("No settings file found. Do you want to save the current settings?");
+        bool saveSettings = AnsiConsole.Confirm(Strings.Prompts.SaveSettings);
         if (saveSettings)
         {
           SaveSettings(settingsConfig);
-          AnsiConsole.MarkupLine("[green]Settings saved successfully.[/]");
+          AnsiConsole.MarkupLine($"[green]{Strings.Messages.SettingsSaved}[/]");
         }
       }
     }

@@ -3,6 +3,10 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Spectre.Console.Cli.Internal.Configuration;
+using Spectre.Console.Rendering;
+using Velopack;
+using Velopack.Sources;
 
 namespace ResoniteModUpdater
 {
@@ -10,66 +14,269 @@ namespace ResoniteModUpdater
     {
         public static async Task<int> Main(string[] args)
         {
+            VelopackApp.Build().Run();
             var app = new CommandApp<DefaultCommand>();
             app.Configure(config =>
             {
-                config.SetApplicationName("ResoniteModUpdater");
-                config.SetApplicationVersion("2.2.0");
-                config.AddExample(Utils.GetDefaultPath());
-                config.AddExample(Utils.GetDefaultPath(), "-token xxxxxxxxxxxxxx");
+                config.SetApplicationName(Strings.Application.AppName);
+                config.AddExample(Strings.Examples.Empty);
+                config.AddExample(Strings.Examples.Update);
+                config.AddExample(Strings.Commands.Search, Strings.Examples.SearchExample);
 
-                config.AddCommand<SearchCommand>("search")
-                    .WithExample("search", "example")
-                    .WithAlias("find")
-                    .WithDescription("Searches the manifest for mods (Alias: find)");
+                config.AddCommand<UpdateCommand>(Strings.Commands.Update)
+                    .WithAlias(Strings.Commands.UpdateAlias1)
+                    .WithAlias(Strings.Commands.UpdateAlias2)
+                    .WithDescription(Strings.Descriptions.UpdateMods)
+                    .WithExample(Strings.Examples.Update)
+                    .WithExample(string.Format(Strings.Examples.UpdateWithPath, Utils.GetDefaultPath()))
+                    .WithExample(string.Format(Strings.Examples.UpdateWithPathAndToken, Utils.GetDefaultPath()));
+
+                config.AddCommand<SearchCommand>(Strings.Commands.Search)
+                    .WithExample(Strings.Commands.Search, Strings.Examples.SearchExample)
+                    .WithAlias(Strings.Commands.SearchAlias)
+                    .WithDescription(Strings.Descriptions.UpdateMods);
             });
 
             return await app.RunAsync(args);
         }
 
+        private static async Task UpdateMyApp()
+        {
+            var mgr = new UpdateManager(new SimpleFileSource(new DirectoryInfo(@"C:\Users\haz\dev\ResoniteModUpdater\Releases")));
+
+            // check for new version
+            var newVersion = await mgr.CheckForUpdatesAsync();
+            if (newVersion == null)
+                return; // no update available
+
+            // download new version
+            await mgr.DownloadUpdatesAsync(newVersion);
+
+            // install new version and restart app
+            mgr.ApplyUpdatesAndRestart(newVersion);
+        }
+
         public static string AskPath()
         {
             return AnsiConsole.Prompt(
-                new TextPrompt<string>("Please enter the mods folder path:")
+                new TextPrompt<string>(Strings.Prompts.EnterModsFolderPath)
                     .DefaultValue(Utils.GetDefaultPath())
                     .DefaultValueStyle("gray")
                     .PromptStyle("green")
                     .AllowEmpty()
-                    .ValidationErrorMessage("[red]That's not a valid directory[/]")
+                    .ValidationErrorMessage($"[red]{Strings.Errors.NotValidDirectory}[/]")
                     .Validate(path =>
                     {
                         return path switch
                         {
                             _ when string.IsNullOrWhiteSpace(path) => ValidationResult.Success(),
-                            _ when !Directory.Exists(path) => ValidationResult.Error(),
+                            _ when !Directory.Exists(path) => ValidationResult.Error("test"),
                             _ => ValidationResult.Success(),
                         };
                     }));
         }
 
-        internal sealed class DefaultCommand : AsyncCommand<DefaultCommand.Settings>
+        public class DefaultCommand : AsyncCommand<DefaultCommand.Settings>
         {
-            public sealed class Settings : CommandSettings
+            public class Settings : CommandSettings
             {
-                [Description("Path to resonite mods folder.")]
-                [CommandArgument(0, "[ModsFolder]")]
-                public string? ModsFolder { get; set; }
-
-                [Description("GitHub authentication token for using GitHub's official API. Optional, alternative to RSS feed method.")]
-                [CommandOption("-t|--token")]
-                public string? Token { get; set; }
-
-                [Description("Enables dry run mode. Checks for mod updates without installing them.")]
-                [CommandOption("-d|--dry")]
-                [DefaultValue(false)]
-                public bool DryMode { get; set; }
+                [Description(Strings.Descriptions.Version)]
+                [CommandOption("-v|--version")]
+                public bool Version { get; set; }
             }
 
             public override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings)
             {
                 if (!AnsiConsole.Profile.Capabilities.Interactive)
                 {
-                    AnsiConsole.MarkupLine("[red]Environment does not support interaction.[/]");
+                    AnsiConsole.MarkupLine($"[red]{Strings.Errors.NotInteractiveConsole}[/]");
+                    return 1;
+                }
+
+                if (settings.Version)
+                {
+                    AnsiConsole.MarkupLine($"[yellow]{Strings.Application.AppName}[/] [b]v{GetVersion()}[/] ({VelopackRuntimeInfo.GetOsShortName(VelopackRuntimeInfo.SystemOs)}-{VelopackRuntimeInfo.SystemArch})");
+                    return 0;
+                }
+
+
+                while (true)
+                {
+                    AnsiConsole.Clear();
+                    DisplayHeaderCommands();
+                    var choice = ShowMainMenu();
+
+                    try
+                    {
+                        switch (choice)
+                        {
+                            case Strings.MenuOptions.UpdateMods:
+                                AnsiConsole.Clear();
+                                DisplayHeaderUpdateOptions();
+                                var updateSettings = PromptForUpdateSettings();
+                                AnsiConsole.WriteLine();
+                                await new UpdateCommand().ExecuteAsync(context, updateSettings);
+                                break;
+                            case Strings.MenuOptions.SearchModManifest:
+                                AnsiConsole.Clear();
+                                var searchSettings = PromptForSearchSettings();
+                                AnsiConsole.WriteLine();
+                                await new SearchCommand().ExecuteAsync(context, searchSettings);
+                                break;
+                            case Strings.MenuOptions.ExitApplication:
+                                return 0;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AnsiConsole.MarkupLine($"[red]{string.Format(Strings.Errors.Exception, ex.Message)}[/]");
+                    }
+
+                    if (!AnsiConsole.Confirm(Strings.Prompts.ReturnToMainMenu))
+                    {
+                        return 0;
+                    }
+                }
+            }
+
+            private void DisplayHeaderCommands()
+            {
+                var version = Assembly.GetEntryAssembly()?.GetName().Version;
+                var versionString = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "";
+
+                var table = new Table().HideHeaders().NoBorder();
+                table.Title($"[yellow]{Strings.Application.AppName}[/] [b]v{versionString}[/]");
+                table.AddColumn("col1", c => c.NoWrap().RightAligned().PadRight(3));
+                table.AddColumn("col2", c => c.PadRight(0));
+                table.AddEmptyRow();
+
+                table.AddEmptyRow();
+                table.AddRow(
+                    new Markup($"[yellow]{Strings.MenuOptions.UpdateMods}[/]"),
+                    new Markup(Strings.Descriptions.UpdateMods));
+
+                table.AddRow(
+                    new Markup($"[yellow]{Strings.MenuOptions.UpdateLibraries}[/]"),
+                    new Markup(Strings.Descriptions.UpdateLibraries));
+
+                table.AddRow(
+                    new Markup($"[yellow]{Strings.MenuOptions.SearchModManifest}[/]"),
+                    new Markup(Strings.Descriptions.SearchModManifest));
+
+
+
+                AnsiConsole.WriteLine();
+                AnsiConsole.Write(table);
+                AnsiConsole.WriteLine();
+            }
+            private void DisplayHeaderUpdateOptions()
+            {
+                var table = new Table().HideHeaders().NoBorder();
+                table.Title($"[yellow]{Strings.Application.AppName}[/] [b]v{GetVersion()}[/]");
+                table.AddColumn("col1", c => c.NoWrap().RightAligned().Width(10).PadRight(3));
+                table.AddColumn("col2", c => c.PadRight(0));
+                table.AddEmptyRow();
+
+                table.AddEmptyRow();
+                table.AddRow(
+                    new Markup("[yellow]Options[/]"),
+                    new Grid().Expand().AddColumns(2)
+                    .AddRow(
+                        "ModsFolder",
+                        Strings.Descriptions.ModsFolder)
+                    .AddRow(
+                        "DryMode",
+                        Strings.Descriptions.DryMode)
+                    .AddRow(
+                        "Token",
+                        Strings.Descriptions.Token));
+
+
+                AnsiConsole.WriteLine();
+                AnsiConsole.Write(table);
+                AnsiConsole.WriteLine();
+            }
+
+            private static string GetVersion()
+            {
+                var version = Assembly.GetEntryAssembly()?.GetName().Version;
+                var versionString = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "NaN";
+                return versionString;
+            }
+
+            private string ShowMainMenu()
+            {
+                return AnsiConsole.Prompt(
+                    new SelectionPrompt<string>()
+                        .Title(Strings.Prompts.InteractivePrompt)
+                        .HighlightStyle(new Style(foreground: Color.Orange1, decoration: Decoration.Bold))
+                        .EnableSearch()
+                        .AddChoices(new[] {
+                            Strings.MenuOptions.UpdateMods,
+                            Strings.MenuOptions.UpdateLibraries,
+                            Strings.MenuOptions.SearchModManifest,
+                            Strings.MenuOptions.ExitApplication
+                        }));
+            }
+
+            private UpdateCommand.Settings PromptForUpdateSettings()
+            {
+                var settings = new UpdateCommand.Settings
+                {
+                    ModsFolder = AnsiConsole.Ask<string>(Strings.Prompts.EnterModsFolderPath, Utils.GetDefaultPath()),
+                    DryMode = AnsiConsole.Confirm(Strings.Prompts.EnableDryRunMode, false),
+                    Token = AnsiConsole.Prompt(
+                    new TextPrompt<string>(Strings.Prompts.EnterGitHubToken)
+                        .AllowEmpty()
+                ),
+                    ReadKeyExit = false
+                };
+
+                return settings;
+            }
+
+            private SearchCommand.Settings PromptForSearchSettings()
+            {
+                var settings = new SearchCommand.Settings
+                {
+                    Query = AnsiConsole.Ask<string>(Strings.Prompts.EnterSearchQuery),
+                    Manifest = AnsiConsole.Prompt(new TextPrompt<string>(Strings.Prompts.EnterAlternativeManifest).AllowEmpty()),
+                    ReadKeyExit = false
+                };
+
+
+                return settings;
+            }
+        }
+
+
+        internal sealed class UpdateCommand : AsyncCommand<UpdateCommand.Settings>
+        {
+            public sealed class Settings : CommandSettings
+            {
+                [Description(Strings.Descriptions.ModsFolder)]
+                [CommandArgument(0, "[ModsFolder]")]
+                public string? ModsFolder { get; set; }
+
+                [Description(Strings.Descriptions.Token)]
+                [CommandOption("-t|--token")]
+                public string? Token { get; set; }
+
+                [Description(Strings.Descriptions.DryMode)]
+                [CommandOption("-d|--dry")]
+                [DefaultValue(false)]
+                public bool DryMode { get; set; }
+
+                [CommandOption("--readkeyexit", IsHidden = true)]
+                [DefaultValue(true)]
+                public bool ReadKeyExit { get; set; }
+            }
+
+            public override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings)
+            {
+                if (!AnsiConsole.Profile.Capabilities.Interactive)
+                {
+                    AnsiConsole.MarkupLine($"[red]{Strings.Errors.NotInteractiveConsole}[/]");
                     return 1;
                 }
 
@@ -78,8 +285,12 @@ namespace ResoniteModUpdater
                 var urls = Utils.GetFiles(settingsConfig.ModsFolder!);
                 if (!urls.Any())
                 {
-                    AnsiConsole.MarkupLine("[red]No Mods found to update. Press any key to Exit.[/]");
-                    Console.ReadKey();
+                    AnsiConsole.MarkupLine($"[red]{Strings.Errors.NoModsToUpdate}[/]");
+                    if (settings.ReadKeyExit)
+                    {
+                        AnsiConsole.MarkupLine($"[slateblue3]{Strings.Messages.PressKeyExit}[/]");
+                        Console.ReadKey();
+                    }
                     return 1;
                 }
 
@@ -88,8 +299,13 @@ namespace ResoniteModUpdater
 
                 Utils.CheckAndSaveOverriddenSettings(settingsConfig, loadedSettings, overriddenSettings);
 
-                AnsiConsole.MarkupLine($"[slateblue3]{(settingsConfig.DryMode ? "Finished Checking Mod Updates" : "Finished Updating mods")}. Press any key to Exit.[/]");
-                Console.ReadKey();
+
+                AnsiConsole.MarkupLine($"[slateblue3]{(settingsConfig.DryMode ? Strings.Messages.FinishedCheckingMods : Strings.Messages.FinishedUpdatingMods)}.[/]");
+                if (settings.ReadKeyExit)
+                {
+                    AnsiConsole.MarkupLine($"[slateblue3]{Strings.Messages.PressKeyExit}[/]");
+                    Console.ReadKey();
+                }
                 return 0;
             }
 
@@ -142,12 +358,12 @@ namespace ResoniteModUpdater
             {
                 var (symbol, statusText) = status switch
                 {
-                    0 => ("+", dryMode ? "[green]Update Available[/]" : "[green]Updated[/]"),
-                    1 => ("-", "[dim]Up To Date[/]"),
-                    2 => ("/", "[red]No Link variable found[/]"),
-                    3 => ("/", "[red]Invalid Link variable, no releases found[/]"),
-                    4 => ("/", "[dim]Ignored[/]"),
-                    _ => ("/", "[red]Something went Wrong[/]")
+                    0 => (Strings.ModStatus.Symbols.Update, dryMode ? $"[green]{Strings.ModStatus.UpdateAvailable}[/]" : $"[green]{Strings.ModStatus.Updated}[/]"),
+                    1 => (Strings.ModStatus.Symbols.NoChange, $"[dim]{Strings.ModStatus.UpToDate}[/]"),
+                    2 => (Strings.ModStatus.Symbols.Issue, $"[red]{Strings.ModStatus.NoLinkFound}[/]"),
+                    3 => (Strings.ModStatus.Symbols.Issue, $"[red]{Strings.ModStatus.InvalidLink}[/]"),
+                    4 => (Strings.ModStatus.Symbols.NoChange, $"[dim]{Strings.ModStatus.Ignored}[/]"),
+                    _ => (Strings.ModStatus.Symbols.Issue, $"[red]{Strings.ModStatus.Error}[/]")
                 };
 
                 table.AddRow($"[orange1]{symbol}[/]", Path.GetFileName(dllFile), statusText, $"[link={releaseUrl}]{releaseUrl}[/]");
@@ -164,7 +380,7 @@ namespace ResoniteModUpdater
                 string? libraryPath = Utils.GetLibraryPath(settingsConfig.ModsFolder!, subFolder, dllName);
                 if (string.IsNullOrEmpty(libraryPath))
                 {
-                    AnsiConsole.MarkupLine($"[red]{dllName} not found. Skipping..[/]");
+                    AnsiConsole.MarkupLine($"[red]{string.Format(Strings.Errors.DLLNotFoundSkipping, dllName)}[/]");
                     return;
                 }
 
@@ -182,20 +398,24 @@ namespace ResoniteModUpdater
         {
             public class Settings : CommandSettings
             {
-                [Description("Query to search for in the manifest.")]
+                [Description(Strings.Descriptions.Query)]
                 [CommandArgument(0, "[QUERY]")]
                 public required string Query { get; set; }
 
-                [Description("Set alternative manifest json url. It must match the RML manifest schema (Advanced)")]
+                [Description(Strings.Descriptions.Manifest)]
                 [CommandOption("-m|--manifest")]
                 public string? Manifest { get; set; }
+
+                [CommandOption("--readkeyexit", IsHidden = true)]
+                [DefaultValue(true)]
+                public bool ReadKeyExit { get; set; }
             }
 
             public override async Task<int> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings)
             {
                 if (!AnsiConsole.Profile.Capabilities.Interactive)
                 {
-                    AnsiConsole.MarkupLine("[red]Environment does not support interaction.[/]");
+                    AnsiConsole.MarkupLine($"[red]{Strings.Errors.NotInteractiveConsole}[/]");
                     return 1;
                 }
 
@@ -203,7 +423,7 @@ namespace ResoniteModUpdater
 
                 if (string.IsNullOrEmpty(settings.Query))
                 {
-                    AnsiConsole.MarkupLine("[red]No search term provided[/]");
+                    AnsiConsole.MarkupLine($"[red]{Strings.Errors.NoSearchTerm}[/]");
                     return 0;
                 }
 
@@ -211,11 +431,23 @@ namespace ResoniteModUpdater
 
                 if (results.Count == 0)
                 {
-                    AnsiConsole.MarkupLine($"[red]No results found for query: {settings.Query}. Press any key to Exit.[/]");
-                    Console.ReadKey();
+                    AnsiConsole.MarkupLine($"[red]{string.Format(Strings.Errors.NoResultsQuery, settings.Query)}.[/]");
+                    if (settings.ReadKeyExit)
+                    {
+                        AnsiConsole.MarkupLine($"[slateblue3]{Strings.Messages.PressKeyExit}[/]");
+                        Console.ReadKey();
+                    }
+                    return 0;
                 }
 
                 Utils.CheckAndSaveOverriddenSettings(settingsConfig, loadedSettings, overriddenSettings);
+
+                AnsiConsole.MarkupLine($"[slateblue3]{Strings.Messages.FinishedSearchingMods}[/]");
+                if (settings.ReadKeyExit)
+                {
+                    AnsiConsole.MarkupLine($"[slateblue3]{Strings.Messages.PressKeyExit}[/]");
+                    Console.ReadKey();
+                }
 
                 return 0;
             }
@@ -223,7 +455,7 @@ namespace ResoniteModUpdater
             private async Task<List<SearchResult>> SearchAndDisplayResults(string query, string manifest)
             {
                 var results = await AnsiConsole.Status()
-                    .StartAsync($"Searching for {query}...", _ => Utils.SearchManifest(query, manifest));
+                    .StartAsync(string.Format(Strings.Status.Searching, query), _ => Utils.SearchManifest(query, manifest));
 
                 if (results.Count > 0)
                 {
@@ -236,11 +468,11 @@ namespace ResoniteModUpdater
             private void DisplayResultsTable(List<SearchResult> results)
             {
                 var table = new Table()
-                    .AddColumn(new TableColumn("[cyan]Name[/]"))
-                    .AddColumn(new TableColumn("[cyan]Author[/]"))
-                    .AddColumn(new TableColumn("[cyan]ID[/]"))
-                    .AddColumn(new TableColumn("[cyan]Version[/]"))
-                    .AddColumn(new TableColumn("[cyan]Description[/]"))
+                    .AddColumn(new TableColumn($"[cyan]{Strings.SearchTableHeaders.Name}[/]"))
+                    .AddColumn(new TableColumn($"[cyan]{Strings.SearchTableHeaders.Author}[/]"))
+                    .AddColumn(new TableColumn($"[cyan]{Strings.SearchTableHeaders.ID}[/]"))
+                    .AddColumn(new TableColumn($"[cyan]{Strings.SearchTableHeaders.Version}[/]"))
+                    .AddColumn(new TableColumn($"[cyan]{Strings.SearchTableHeaders.Description}[/]"))
                     .ShowRowSeparators();
 
                 foreach (var result in results)
@@ -288,7 +520,7 @@ namespace ResoniteModUpdater
             var loadedSettings = Utils.LoadSettings();
             if (loadedSettings != null)
             {
-                await AnsiConsole.Status().StartAsync("Loading settings...", async _ =>
+                await AnsiConsole.Status().StartAsync(Strings.Status.LoadingSettings, async _ =>
                 {
                     settingsConfig = loadedSettings;
                     await Task.Delay(1000);
@@ -302,10 +534,10 @@ namespace ResoniteModUpdater
             }
 
             await AnsiConsole.Status()
-                .StartAsync("Starting...", async ctx =>
+                .StartAsync(Strings.Status.Starting, async ctx =>
                 {
                     await Task.Delay(1000);
-                    ctx.Status("Checking Arguments...");
+                    ctx.Status(Strings.Status.CheckingArguments);
 
                     List<string> propertiesList = new List<string>();
                     foreach (PropertyInfo property in typeof(Utils.SettingsConfig).GetProperties())
@@ -332,7 +564,7 @@ namespace ResoniteModUpdater
 
                     if (propertiesList.Any())
                     {
-                        AnsiConsole.Write(new Padder(new Markup($"[yellow]Arguments[/]")).Padding(0, 0));
+                        AnsiConsole.Write(new Padder(new Markup($"[yellow]{Strings.Messages.Arguments}[/]")).Padding(0, 0));
 
                         foreach (string property in propertiesList)
                         {
@@ -341,7 +573,7 @@ namespace ResoniteModUpdater
                     }
                 });
 
-            if (typeof(TSettings) == typeof(DefaultCommand.Settings))
+            if (typeof(TSettings) == typeof(UpdateCommand.Settings))
             {
                 settingsConfig.ModsFolder ??= AskPath();
             }
