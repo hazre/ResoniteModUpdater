@@ -42,12 +42,12 @@ namespace ResoniteModUpdater
     public static void SaveSettings(SettingsConfig settings)
     {
       var settingsJson = JsonConvert.SerializeObject(settings, Newtonsoft.Json.Formatting.Indented);
-      var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SettingsFileName);
+      var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", SettingsFileName);
       File.WriteAllText(settingsFilePath, settingsJson);
     }
     public static SettingsConfig? LoadSettings()
     {
-      var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SettingsFileName);
+      var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", SettingsFileName);
       if (File.Exists(settingsFilePath))
       {
         var settingsJson = File.ReadAllText(settingsFilePath);
@@ -241,7 +241,7 @@ namespace ResoniteModUpdater
     }
     public static void CheckAndSaveOverriddenSettings(SettingsConfig settingsConfig, bool loadedSettings, bool overriddenSettings)
     {
-      if (overriddenSettings)
+      if (overriddenSettings && loadedSettings)
       {
         bool updateSettings = AnsiConsole.Confirm(Strings.Prompts.SaveOverriddenSettings);
         if (updateSettings)
@@ -250,7 +250,7 @@ namespace ResoniteModUpdater
           AnsiConsole.MarkupLine($"[green]{Strings.Messages.SettingsUpdated}[/]");
         }
       }
-      else if (loadedSettings)
+      else if (!loadedSettings)
       {
         bool saveSettings = AnsiConsole.Confirm(Strings.Prompts.SaveSettings);
         if (saveSettings)
@@ -352,7 +352,7 @@ namespace ResoniteModUpdater
       {
         settingsConfig.ModsFolder ??= AskPath();
       }
-      return (settingsConfig, loadedSettings == null ? true : false, overriddenSettings.Any() ? true : false);
+      return (settingsConfig, loadedSettings != null ? true : false, overriddenSettings.Any() ? true : false);
     }
     public static string AskPath()
     {
@@ -372,6 +372,12 @@ namespace ResoniteModUpdater
                   _ => ValidationResult.Success(),
                 };
               }));
+    }
+    public static string GetVersion()
+    {
+      var version = Assembly.GetEntryAssembly()?.GetName().Version;
+      var versionString = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "NaN";
+      return versionString;
     }
   }
 }

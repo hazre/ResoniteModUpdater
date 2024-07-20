@@ -50,12 +50,11 @@ namespace ResoniteModUpdater
       public const string InteractivePrompt = "What would you like to do?";
       public const string EnterModsFolderPath = "Enter the path to the mods folder:";
       public const string EnableDryRunMode = "Enable dry run mode?";
-      public const string EnterGitHubToken = "Enter GitHub authentication token (optional):";
       public const string EnterSearchQuery = "Enter your search query:";
-      public const string EnterAlternativeManifest = "Enter alternative manifest JSON URL (optional):";
       public const string ReturnToMainMenu = "Return to main menu?";
       public const string SaveOverriddenSettings = "Do you want to update your saved settings with the overridden values?";
       public const string SaveSettings = "No settings file found. Do you want to save the current settings?";
+      public const string Update = "There is a update available, would you like to update?";
     }
 
     public static class Messages
@@ -68,6 +67,8 @@ namespace ResoniteModUpdater
       public const string OverriddenSettings = "The following settings were overridden by command-line arguments:";
       public const string SettingsUpdated = "Settings updated and saved successfully.";
       public const string SettingsSaved = "Settings saved successfully.";
+      public const string DownloadingUpdate = "Downloading new version..";
+      public const string InstallingUpdate = "Installing new version and restarting..";
 
     }
     public static class Errors

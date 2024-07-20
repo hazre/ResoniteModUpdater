@@ -28,7 +28,7 @@ namespace ResoniteModUpdater.Commands.Default
 
       if (settings.Version)
       {
-        AnsiConsole.MarkupLine($"[yellow]{Strings.Application.AppName}[/] [b]v{GetVersion()}[/] ({VelopackRuntimeInfo.GetOsShortName(VelopackRuntimeInfo.SystemOs)}-{VelopackRuntimeInfo.SystemArch})");
+        AnsiConsole.MarkupLine($"[yellow]{Strings.Application.AppName}[/] [b]v{Utils.GetVersion()}[/] ({VelopackRuntimeInfo.GetOsShortName(VelopackRuntimeInfo.SystemOs)}-{VelopackRuntimeInfo.SystemArch})");
         return 0;
       }
 
@@ -39,20 +39,22 @@ namespace ResoniteModUpdater.Commands.Default
         DisplayHeaderCommands();
         var choice = ShowMainMenu();
 
+        var loadedSettings = Utils.LoadSettings();
+
         try
         {
           switch (choice)
           {
             case Strings.MenuOptions.UpdateMods:
               AnsiConsole.Clear();
-              DisplayHeaderUpdateOptions();
-              var updateSettings = PromptForUpdateSettings();
+              // DisplayHeaderUpdateOptions();
+              var updateSettings = PromptForUpdateSettings(loadedSettings);
               AnsiConsole.WriteLine();
               await new UpdateCommand().ExecuteAsync(context, updateSettings);
               break;
             case Strings.MenuOptions.SearchModManifest:
               AnsiConsole.Clear();
-              var searchSettings = PromptForSearchSettings();
+              var searchSettings = PromptForSearchSettings(loadedSettings);
               AnsiConsole.WriteLine();
               await new SearchCommand().ExecuteAsync(context, searchSettings);
               break;
@@ -105,7 +107,7 @@ namespace ResoniteModUpdater.Commands.Default
     private void DisplayHeaderUpdateOptions()
     {
       var table = new Table().HideHeaders().NoBorder();
-      table.Title($"[yellow]{Strings.Application.AppName}[/] [b]v{GetVersion()}[/]");
+      table.Title($"[yellow]{Strings.Application.AppName}[/] [b]v{Utils.GetVersion()}[/]");
       table.AddColumn("col1", c => c.NoWrap().RightAligned().Width(10).PadRight(3));
       table.AddColumn("col2", c => c.PadRight(0));
       table.AddEmptyRow();
@@ -130,13 +132,6 @@ namespace ResoniteModUpdater.Commands.Default
       AnsiConsole.WriteLine();
     }
 
-    private static string GetVersion()
-    {
-      var version = Assembly.GetEntryAssembly()?.GetName().Version;
-      var versionString = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "NaN";
-      return versionString;
-    }
-
     private string ShowMainMenu()
     {
       return AnsiConsole.Prompt(
@@ -152,28 +147,25 @@ namespace ResoniteModUpdater.Commands.Default
               }));
     }
 
-    private UpdateCommand.Settings PromptForUpdateSettings()
+    private UpdateCommand.Settings PromptForUpdateSettings(Utils.SettingsConfig? loadedSettings)
     {
       var settings = new UpdateCommand.Settings
       {
-        ModsFolder = AnsiConsole.Ask<string>(Strings.Prompts.EnterModsFolderPath, Utils.GetDefaultPath()),
+        ModsFolder = loadedSettings?.ModsFolder ?? AnsiConsole.Ask<string>(Strings.Prompts.EnterModsFolderPath, Utils.GetDefaultPath()),
         DryMode = AnsiConsole.Confirm(Strings.Prompts.EnableDryRunMode, false),
-        Token = AnsiConsole.Prompt(
-          new TextPrompt<string>(Strings.Prompts.EnterGitHubToken)
-              .AllowEmpty()
-      ),
+        Token = loadedSettings?.Token,
         ReadKeyExit = false
       };
 
       return settings;
     }
 
-    private SearchCommand.Settings PromptForSearchSettings()
+    private SearchCommand.Settings PromptForSearchSettings(Utils.SettingsConfig? loadedSettings)
     {
       var settings = new SearchCommand.Settings
       {
         Query = AnsiConsole.Ask<string>(Strings.Prompts.EnterSearchQuery),
-        Manifest = AnsiConsole.Prompt(new TextPrompt<string>(Strings.Prompts.EnterAlternativeManifest).AllowEmpty()),
+        Manifest = loadedSettings?.Manifest,
         ReadKeyExit = false
       };
 

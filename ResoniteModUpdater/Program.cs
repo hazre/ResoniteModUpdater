@@ -1,9 +1,9 @@
 ﻿using ResoniteModUpdater.Commands.Default;
 using ResoniteModUpdater.Commands.Search;
 using ResoniteModUpdater.Commands.Update;
+using Spectre.Console;
 using Spectre.Console.Cli;
 using Velopack;
-using Velopack.Sources;
 
 namespace ResoniteModUpdater
 {
@@ -12,6 +12,7 @@ namespace ResoniteModUpdater
         public static async Task<int> Main(string[] args)
         {
             VelopackApp.Build().Run();
+            await UpdateMyApp();
             var app = new CommandApp<DefaultCommand>();
             app.Configure(config =>
             {
@@ -36,20 +37,22 @@ namespace ResoniteModUpdater
 
             return await app.RunAsync(args);
         }
-
-        private static async Task UpdateMyApp()
+        public static async Task UpdateMyApp()
         {
-            var mgr = new UpdateManager(new SimpleFileSource(new DirectoryInfo(@"C:\Users\haz\dev\ResoniteModUpdater\Releases")));
-
-            // check for new version
+            var mgr = new UpdateManager("C:\\Users\\haz\\dev\\ResoniteModUpdater\\ResoniteModUpdater\\Releases");
             var newVersion = await mgr.CheckForUpdatesAsync();
-            if (newVersion == null)
-                return; // no update available
+            if (newVersion == null) return;
+
+            if (!AnsiConsole.Confirm($"{Strings.Prompts.Update} ({Utils.GetVersion()} -> {newVersion.TargetFullRelease.Version})")) return;
 
             // download new version
+            AnsiConsole.WriteLine(Strings.Messages.DownloadingUpdate);
+            await Task.Delay(1000);
             await mgr.DownloadUpdatesAsync(newVersion);
 
             // install new version and restart app
+            AnsiConsole.WriteLine(Strings.Messages.InstallingUpdate);
+            await Task.Delay(1000);
             mgr.ApplyUpdatesAndRestart(newVersion);
         }
     }
