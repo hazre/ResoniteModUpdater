@@ -55,6 +55,7 @@ namespace ResoniteModUpdater
       public const string SaveOverriddenSettings = "Do you want to update your saved settings with the overridden values?";
       public const string SaveSettings = "No settings file found. Do you want to save the current settings?";
       public const string Update = "There is a update available, would you like to update?";
+      public const string UpdateLibraries = "There is an update available for {0}. Would you like to update it?";
     }
 
     public static class Messages

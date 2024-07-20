@@ -50,7 +50,7 @@ namespace ResoniteModUpdater.Commands.Update
       }
 
       await DisplayModUpdateStatus(urls, settingsConfig);
-      await UpdateAdditionalLibraries(settingsConfig);
+      await Utils.UpdateAdditionalLibraries(settingsConfig);
 
       Utils.CheckAndSaveOverriddenSettings(settingsConfig, loadedSettings, overriddenSettings);
 
@@ -122,30 +122,6 @@ namespace ResoniteModUpdater.Commands.Update
       };
 
       table.AddRow($"[orange1]{symbol}[/]", Path.GetFileName(dllFile), statusText, $"[link={releaseUrl}]{releaseUrl}[/]");
-    }
-
-    private async Task UpdateAdditionalLibraries(Utils.SettingsConfig settingsConfig)
-    {
-      await UpdateLibrary("ResoniteModLoader.dll", "Libraries", settingsConfig);
-      await UpdateLibrary("0Harmony.dll", "rml_libs", settingsConfig);
-    }
-
-    private async Task UpdateLibrary(string dllName, string subFolder, Utils.SettingsConfig settingsConfig)
-    {
-      string? libraryPath = Utils.GetLibraryPath(settingsConfig.ModsFolder!, subFolder, dllName);
-      if (string.IsNullOrEmpty(libraryPath))
-      {
-        AnsiConsole.MarkupLine($"[red]{string.Format(Strings.Errors.DLLNotFoundSkipping, dllName)}[/]");
-        return;
-      }
-
-      var resoniteModLoaderSource = settingsConfig.ResoniteModLoaderSource ?? Utils.ResoniteModLoaderSource;
-
-      var (status, _) = await Utils.DownloadFromRSS(libraryPath, resoniteModLoaderSource, true);
-      if (status == 0 && AnsiConsole.Confirm($"There is an update available for {dllName}. Would you like to update it?"))
-      {
-        await Utils.DownloadFromRSS(libraryPath, resoniteModLoaderSource, false);
-      }
     }
   }
 }
