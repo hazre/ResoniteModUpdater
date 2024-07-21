@@ -12,7 +12,9 @@ namespace ResoniteModUpdater
         public static async Task<int> Main(string[] args)
         {
             VelopackApp.Build().Run();
+#if !DEBUG
             await UpdateMyApp();
+#endif
             var app = new CommandApp<DefaultCommand>();
             app.Configure(config =>
             {
