@@ -4,6 +4,7 @@ using ResoniteModUpdater.Commands.Update;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Velopack;
+using Velopack.Sources;
 
 namespace ResoniteModUpdater
 {
@@ -41,7 +42,7 @@ namespace ResoniteModUpdater
         }
         public static async Task UpdateMyApp()
         {
-            var mgr = new UpdateManager("C:\\Users\\haz\\dev\\ResoniteModUpdater\\ResoniteModUpdater\\Releases");
+            var mgr = new UpdateManager(new GithubSource("https://github.com/hazre/ResoniteModUpdater", null, false));
             var newVersion = await mgr.CheckForUpdatesAsync();
             if (newVersion == null) return;
 
