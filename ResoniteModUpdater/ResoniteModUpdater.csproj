@@ -10,6 +10,7 @@
     <RepositoryUrl>https://github.com/hazre/ResoniteModUpdater</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <AssemblyVersion>2.2.0</AssemblyVersion>
+    <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
 
   <ItemGroup>
