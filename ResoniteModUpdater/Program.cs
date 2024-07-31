@@ -22,7 +22,7 @@ namespace ResoniteModUpdater
                 config.SetApplicationName(Strings.Application.AppName);
                 config.AddExample(Strings.Examples.Empty);
                 config.AddExample(Strings.Examples.Update);
-                config.AddExample(Strings.Commands.Search, Strings.Examples.SearchExample);
+                config.AddExample(Strings.Examples.SearchExample);
 
                 config.AddCommand<UpdateCommand>(Strings.Commands.Update)
                     .WithAlias(Strings.Commands.UpdateAlias1)
