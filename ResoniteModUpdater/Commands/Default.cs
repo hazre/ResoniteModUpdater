@@ -64,6 +64,7 @@ namespace ResoniteModUpdater.Commands.Default
               await new SearchCommand().ExecuteAsync(context, searchSettings);
               break;
             case Strings.MenuOptions.ExitApplication:
+              AnsiConsole.Clear();
               return 0;
           }
         }
