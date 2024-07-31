@@ -379,13 +379,13 @@ namespace ResoniteModUpdater
       var versionString = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "NaN";
       return versionString;
     }
-    public static async Task UpdateAdditionalLibraries(Utils.SettingsConfig settingsConfig)
+    public static async Task UpdateAdditionalLibraries(Utils.SettingsConfig settingsConfig, bool UpdateStatus = false)
     {
-      await UpdateLibrary("ResoniteModLoader.dll", "Libraries", settingsConfig);
-      await UpdateLibrary("0Harmony.dll", "rml_libs", settingsConfig);
+      await UpdateLibrary("ResoniteModLoader.dll", "Libraries", settingsConfig, UpdateStatus);
+      await UpdateLibrary("0Harmony.dll", "rml_libs", settingsConfig, UpdateStatus);
     }
 
-    public static async Task UpdateLibrary(string dllName, string subFolder, Utils.SettingsConfig settingsConfig)
+    public static async Task UpdateLibrary(string dllName, string subFolder, Utils.SettingsConfig settingsConfig, bool UpdateStatus = false)
     {
       string? libraryPath = Utils.GetLibraryPath(settingsConfig.ModsFolder!, subFolder, dllName);
       if (string.IsNullOrEmpty(libraryPath))
@@ -400,6 +400,18 @@ namespace ResoniteModUpdater
       if (status == 0 && AnsiConsole.Confirm(string.Format(Strings.Prompts.UpdateLibraries, dllName)))
       {
         await Utils.DownloadFromRSS(libraryPath, resoniteModLoaderSource, false);
+      }
+
+      if (UpdateStatus)
+      {
+        if (status == 1)
+        {
+          AnsiConsole.MarkupLine($"[slateblue3]{string.Format(Strings.Messages.NoUpdateLibraries, dllName)}[/]");
+        }
+        else if (status == -1)
+        {
+          AnsiConsole.MarkupLine($"[red]{string.Format(Strings.Errors.UpdateFailed, dllName)}[/]");
+        }
       }
     }
   }

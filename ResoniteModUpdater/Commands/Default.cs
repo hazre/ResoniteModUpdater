@@ -47,10 +47,15 @@ namespace ResoniteModUpdater.Commands.Default
           {
             case Strings.MenuOptions.UpdateMods:
               AnsiConsole.Clear();
-              // DisplayHeaderUpdateOptions();
               var updateSettings = PromptForUpdateSettings(loadedSettings);
               AnsiConsole.WriteLine();
               await new UpdateCommand().ExecuteAsync(context, updateSettings);
+              break;
+            case Strings.MenuOptions.UpdateLibraries:
+              AnsiConsole.Clear();
+              var updateLibrariesSettings = PromptForUpdateLibrariesSettings(loadedSettings);
+              AnsiConsole.WriteLine();
+              await Utils.UpdateAdditionalLibraries(updateLibrariesSettings, true);
               break;
             case Strings.MenuOptions.SearchModManifest:
               AnsiConsole.Clear();
@@ -155,6 +160,17 @@ namespace ResoniteModUpdater.Commands.Default
         DryMode = AnsiConsole.Confirm(Strings.Prompts.EnableDryRunMode, false),
         Token = loadedSettings?.Token,
         ReadKeyExit = false
+      };
+
+      return settings;
+    }
+
+    private Utils.SettingsConfig PromptForUpdateLibrariesSettings(Utils.SettingsConfig? loadedSettings)
+    {
+      var settings = new Utils.SettingsConfig
+      {
+        ModsFolder = loadedSettings?.ModsFolder ?? AnsiConsole.Ask<string>(Strings.Prompts.EnterModsFolderPath, Utils.GetDefaultPath()),
+        ResoniteModLoaderSource = loadedSettings?.ResoniteModLoaderSource
       };
 
       return settings;

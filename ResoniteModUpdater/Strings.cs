@@ -70,6 +70,7 @@ namespace ResoniteModUpdater
       public const string SettingsSaved = "Settings saved successfully.";
       public const string DownloadingUpdate = "Downloading new version..";
       public const string InstallingUpdate = "Installing new version and restarting..";
+      public const string NoUpdateLibraries = "No update available for {0}";
 
     }
     public static class Errors
@@ -84,6 +85,7 @@ namespace ResoniteModUpdater
       public const string ForbiddenRetry = "Attempt {0}: Access to the resource is forbidden. Retrying in 1 minute...";
       public const string Forbidden = "Access to the resource is forbidden after multiple attempts.";
       public const string InvalidToken = "Invalid token provided";
+      public const string UpdateFailed = "Something went wrong trying to update {0}";
     }
     public static class ModStatus
     {
