@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - update-resonite-mod-updater-utils
   workflow_dispatch:
 
 jobs:
