@@ -1,0 +1,56 @@
+name: Cross-Platform Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT: ResoniteModUpdater
+      DOTNET_VERSION: '8.0.x'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Get Version from Project File
+        id: get-version
+        run: echo "version=$(grep -oE '<AssemblyVersion>[^<]+' ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj | sed 's/<AssemblyVersion>//')" >> $GITHUB_OUTPUT
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Build and Pack (Linux)
+        run: |
+          dotnet publish ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj -c Release -o publish/linux-x64 -r linux-x64 --self-contained
+          vpk pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r linux-x64 --channel linux-x64 -p publish/linux-x64 -o releases
+
+      - name: Build and Pack (Windows)
+        run: |
+          dotnet publish ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj -c Release -o publish/win-x64 -r win-x64 --no-self-contained
+          vpk pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r win-x64 --channel win-x64 --noPortable --framework net8.0-x64-runtime -p publish/win-x64 -o releases
+          dotnet publish ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj -c Release -o publish/win-x64-portable -r win-x64 --self-contained
+          vpk pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r win-x64 --channel win-x64-portable --noInst --packTitle win-x64-portable -p publish/win-x64-portable -o releases
+          mv releases/${{ env.PROJECT }}-win-x64-portable-Portable.zip releases/${{ env.PROJECT }}-win-x64-portable.zip
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PROJECT }}-releases
+          path: releases/*
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }}
+          vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --releaseName "v${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }}
