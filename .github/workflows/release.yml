@@ -13,6 +13,7 @@ jobs:
     env:
       PROJECT: ResoniteModUpdater
       DOTNET_VERSION: '8.0.x'
+      VPK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout Repository
