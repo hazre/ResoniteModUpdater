@@ -10,6 +10,8 @@ on:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       PROJECT: ResoniteModUpdater
       DOTNET_VERSION: '8.0.x'
