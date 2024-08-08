@@ -9,7 +9,7 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     permissions:
       contents: write
     env:
@@ -28,6 +28,7 @@ jobs:
 
       - name: Get Version from Project File
         id: get-version
+        shell: bash
         run: echo "version=$(grep -oE '<AssemblyVersion>[^<]+' ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj | sed 's/<AssemblyVersion>//')" >> $GITHUB_OUTPUT
 
       - name: Install Velopack CLI
