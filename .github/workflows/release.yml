@@ -38,7 +38,7 @@ jobs:
         run: |
           dotnet publish ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj -c Release -o publish/linux-x64 -r linux-x64 --self-contained
           vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --channel linux-x64 -o releases
-          vpk pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r linux-x64 --channel linux-x64 -p publish/linux-x64 -o releases
+          vpk [linux] pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r linux-x64 --channel linux-x64 -p publish/linux-x64 -o releases
           vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --releaseName "v${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --channel linux-x64 -o releases
 
       - name: Build and Pack (Windows)
