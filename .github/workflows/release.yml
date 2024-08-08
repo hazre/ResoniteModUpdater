@@ -55,7 +55,7 @@ jobs:
           vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --channel win-x64-portable -o releases
           vpk [win] pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r win-x64 --channel win-x64-portable --noInst --packTitle win-x64-portable -p publish/win-x64-portable -o releases
           mv releases/${{ env.PROJECT }}-win-x64-portable-Portable.zip releases/${{ env.PROJECT }}-win-x64-portable.zip
-          JSON_FILE="assets.win-x64-portable.json"
+          JSON_FILE="./releases/assets.win-x64-portable.json"
           json_content=$(cat "$JSON_FILE")
           updated_content=${json_content//"ResoniteModUpdater-win-x64-portable-Portable.zip"/"ResoniteModUpdater-win-x64-portable.zip"}
           echo "$updated_content" > "$JSON_FILE"
