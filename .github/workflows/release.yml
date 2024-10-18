@@ -73,5 +73,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}-artifacts
-          path: releases/${{ env.PROJECT }}-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}*
+          path: |
+            releases/${{ env.PROJECT }}-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}*.zip
+            releases/${{ env.PROJECT }}-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}*.AppImage
+            releases/${{ env.PROJECT }}-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}*.exe
           compression-level: 0
