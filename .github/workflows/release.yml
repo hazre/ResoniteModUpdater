@@ -18,6 +18,20 @@ jobs:
       VPK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       VPK_MERGE: true
 
+    strategy:
+      matrix:
+        include:
+          - platform: linux-x64
+            self-contained: true
+            extra-args: ''
+          - platform: win-x64
+            self-contained: false
+            extra-args: '--noPortable --framework net8.0-x64-runtime'
+          - platform: win-x64
+            self-contained: true
+            extra-args: '--noInst --packTitle win-x64-portable'
+            is-portable: true
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -35,28 +49,25 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
 
-      - name: Build and Pack (Linux)
+      - name: Build and Pack
         run: |
-          dotnet publish ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj -c Release -o publish/linux-x64 -r linux-x64 --self-contained
-          vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --channel linux-x64 -o releases
-          vpk pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r linux-x64 --channel linux-x64 -p publish/linux-x64 -o releases
-          vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --releaseName "v${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --channel linux-x64 -o releases
+          dotnet publish ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj -c Release -o publish/${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -r ${{ matrix.platform }} ${{ matrix.self-contained && '--self-contained' || '--no-self-contained' }}
+          vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
+          vpk ${{ startsWith(matrix.platform, 'win') && '[win] ' || '' }}pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r ${{ matrix.platform }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} ${{ matrix.extra-args }} -p publish/${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
 
-      - name: Build and Pack (Windows)
+      - name: Rename and Update Portable Package
+        if: matrix.is-portable
         run: |
-          dotnet publish ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj -c Release -o publish/win-x64 -r win-x64 --no-self-contained
-          vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --channel win-x64 -o releases
-          vpk [win] pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r win-x64 --channel win-x64 --noPortable --framework net8.0-x64-runtime -p publish/win-x64 -o releases
-          vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --releaseName "v${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --channel win-x64 -o releases
+          mv releases/${{ env.PROJECT }}-${{ matrix.platform }}-portable-Portable.zip releases/${{ env.PROJECT }}-${{ matrix.platform }}-portable.zip
+          JSON_FILE="./releases/assets.${{ matrix.platform }}-portable.json"
+          jq '.[] | select(.name | endswith("-Portable.zip")) |= (.name = .name | sub("-Portable.zip"; ".zip"))' "$JSON_FILE" > temp.json && mv temp.json "$JSON_FILE"
 
-      - name: Build and Pack (Windows portable)
+      - name: Upload Release
         run: |
-          dotnet publish ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj -c Release -o publish/win-x64-portable -r win-x64 --self-contained
-          vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --channel win-x64-portable -o releases
-          vpk [win] pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r win-x64 --channel win-x64-portable --noInst --packTitle win-x64-portable -p publish/win-x64-portable -o releases
-          mv releases/${{ env.PROJECT }}-win-x64-portable-Portable.zip releases/${{ env.PROJECT }}-win-x64-portable.zip
-          JSON_FILE="./releases/assets.win-x64-portable.json"
-          json_content=$(cat "$JSON_FILE")
-          updated_content=${json_content//"ResoniteModUpdater-win-x64-portable-Portable.zip"/"ResoniteModUpdater-win-x64-portable.zip"}
-          echo "$updated_content" > "$JSON_FILE"
-          vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --releaseName "v${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --channel win-x64-portable -o releases
+          vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --releaseName "v${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}-artifacts
+          path: releases/${{ env.PROJECT }}-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}*
