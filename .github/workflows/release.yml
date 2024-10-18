@@ -61,7 +61,7 @@ jobs:
         run: |
           mv releases/${{ env.PROJECT }}-${{ matrix.platform }}-portable-Portable.zip releases/${{ env.PROJECT }}-${{ matrix.platform }}-portable.zip
           JSON_FILE="./releases/assets.${{ matrix.platform }}-portable.json"
-          jq '(.[].name | select(endswith("-Portable.zip"))) |= sub("-Portable.zip"; ".zip")' "$JSON_FILE" > temp.json && mv temp.json "$JSON_FILE"
+          sed -i 's/ResoniteModUpdater-win-x64-portable-Portable.zip/ResoniteModUpdater-win-x64-portable.zip/g' "$JSON_FILE"
 
       - name: Upload Release
         run: |
