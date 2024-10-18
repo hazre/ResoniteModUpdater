@@ -20,6 +20,8 @@ jobs:
       VPK_VERSION: '0.0.626'
 
     strategy:
+      fail-fast: true
+      max-parallel: 1
       matrix:
         include:
           - platform: linux-x64
