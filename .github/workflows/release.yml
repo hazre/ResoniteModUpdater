@@ -60,14 +60,15 @@ jobs:
         run: |
           mv releases/${{ env.PROJECT }}-${{ matrix.platform }}-portable-Portable.zip releases/${{ env.PROJECT }}-${{ matrix.platform }}-portable.zip
           JSON_FILE="./releases/assets.${{ matrix.platform }}-portable.json"
-          jq '.[] | select(.name | endswith("-Portable.zip")) |= (.name = .name | sub("-Portable.zip"; ".zip"))' "$JSON_FILE" > temp.json && mv temp.json "$JSON_FILE"
+          jq '(.[].name | select(endswith("-Portable.zip"))) |= sub("-Portable.zip"; ".zip")' "$JSON_FILE" > temp.json && mv temp.json "$JSON_FILE"
 
       - name: Upload Release
         run: |
-          vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --releaseName "v${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
+          vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --releaseName "v${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --targetCommitish ${{ github.sha }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}-artifacts
           path: releases/${{ env.PROJECT }}-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}*
+          compression-level: 0
