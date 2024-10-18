@@ -17,6 +17,7 @@ jobs:
       DOTNET_VERSION: '8.0.x'
       VPK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       VPK_MERGE: true
+      VPK_VERSION: '0.0.626'
 
     strategy:
       matrix:
@@ -47,7 +48,7 @@ jobs:
         run: echo "version=$(grep -oE '<AssemblyVersion>[^<]+' ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj | sed 's/<AssemblyVersion>//')" >> $GITHUB_OUTPUT
 
       - name: Install Velopack CLI
-        run: dotnet tool install -g vpk
+        run: dotnet tool install -g vpk --version ${{ env.VPK_VERSION }}
 
       - name: Build and Pack
         run: |
