@@ -15,13 +15,12 @@ jobs:
     env:
       PROJECT: ResoniteModUpdater
       DOTNET_VERSION: '8.0.x'
-      VPK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      VPK_MERGE: true
       VPK_VERSION: '0.0.626'
+      DOTNET_NOLOGO: true
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
 
     strategy:
-      fail-fast: true
-      max-parallel: 1
       matrix:
         include:
           - platform: linux-x64
@@ -52,11 +51,14 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk --version ${{ env.VPK_VERSION }}
 
-      - name: Build and Pack
-        run: |
-          dotnet publish ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj -c Release -o publish/${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -r ${{ matrix.platform }} ${{ matrix.self-contained && '--self-contained' || '--no-self-contained' }}
-          vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
-          vpk ${{ startsWith(matrix.platform, 'win') && '[win] ' || '' }}pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r ${{ matrix.platform }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} ${{ matrix.extra-args }} -p publish/${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
+      - name: Build Project
+        run: dotnet publish ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj -c Release -o publish/${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -r ${{ matrix.platform }} ${{ matrix.self-contained && '--self-contained' || '--no-self-contained' }}
+
+      - name: Download Previous Releases
+        run: vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
+
+      - name: Pack New Release
+        run: vpk ${{ startsWith(matrix.platform, 'win') && '[win] ' || '' }}pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r ${{ matrix.platform }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} ${{ matrix.extra-args }} -p publish/${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
 
       - name: Rename and Update Portable Package
         if: matrix.is-portable
@@ -65,16 +67,41 @@ jobs:
           JSON_FILE="./releases/assets.${{ matrix.platform }}-portable.json"
           sed -i 's/ResoniteModUpdater-win-x64-portable-Portable.zip/ResoniteModUpdater-win-x64-portable.zip/g' "$JSON_FILE"
 
-      - name: Upload Release
-        run: |
-          vpk upload github --repoUrl ${{ github.server_url }}/${{ github.repository }} --releaseName "v${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --targetCommitish ${{ github.sha }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Cache build outputs
+        uses: actions/cache/save@v4
         with:
-          name: ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}-artifacts
           path: |
-            releases/${{ env.PROJECT }}-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}*.zip
-            releases/${{ env.PROJECT }}-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}*.AppImage
-            releases/${{ env.PROJECT }}-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}*.exe
-          compression-level: 0
+            releases/releases.*.json
+            releases/*.nupkg
+            releases/*.AppImage
+            releases/*.exe
+          key: ${{ runner.os }}-build-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}-${{ steps.get-version.outputs.version }}
+
+  create-release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Restore cached build outputs
+        uses: actions/cache/restore@v4
+        with:
+          path: releases
+          key: ${{ runner.os }}-build-
+          restore-keys: |
+            ${{ runner.os }}-build-linux-x64-${{ needs.build-and-release.outputs.version }}
+            ${{ runner.os }}-build-win-x64-${{ needs.build-and-release.outputs.version }}
+            ${{ runner.os }}-build-win-x64-portable-${{ needs.build-and-release.outputs.version }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+          name: v${{ needs.build-and-release.outputs.version }}
+          tag_name: v${{ needs.build-and-release.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          files: releases/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
