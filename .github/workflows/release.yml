@@ -71,10 +71,11 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            releases/releases.*.json
-            releases/*.nupkg
-            releases/*.AppImage
-            releases/*.exe
+            releases/**/releases.*.json
+            releases/**/*.nupkg
+            releases/**/*.zip
+            releases/**/*.exe
+            releases/**/*.AppImage
           key: ${{ runner.os }}-build-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}-${{ steps.get-version.outputs.version }}
 
   create-release:
@@ -83,15 +84,47 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Restore cached build outputs
+      - name: Restore cached build outputs linux-x64
         uses: actions/cache/restore@v4
         with:
-          path: releases
-          key: ${{ runner.os }}-build-
-          restore-keys: |
+          path: |
+            releases/**/releases.*.json
+            releases/**/*.nupkg
+            releases/**/*.zip
+            releases/**/*.exe
+            releases/**/*.AppImage
+          key: |
             ${{ runner.os }}-build-linux-x64-${{ needs.build-and-release.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-build-linux-x64-
+
+      - name: Restore cached build outputs win-x64
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            releases/**/releases.*.json
+            releases/**/*.nupkg
+            releases/**/*.zip
+            releases/**/*.exe
+            releases/**/*.AppImage
+          key: |
             ${{ runner.os }}-build-win-x64-${{ needs.build-and-release.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-build-win-x64-
+
+      - name: Restore cached build outputs win-x64-portable
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            releases/**/releases.*.json
+            releases/**/*.nupkg
+            releases/**/*.zip
+            releases/**/*.exe
+            releases/**/*.AppImage
+          key: |
             ${{ runner.os }}-build-win-x64-portable-${{ needs.build-and-release.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-build-win-x64-portable-
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
