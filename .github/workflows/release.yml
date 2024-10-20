@@ -2,9 +2,8 @@ name: Build and Release
 
 on:
   push:
-    branches:
-      - main
-      - update-resonite-mod-updater-utils
+    tags:        
+      - '*'
   workflow_dispatch:
 
 jobs:
