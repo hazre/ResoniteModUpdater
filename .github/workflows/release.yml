@@ -19,6 +19,8 @@ jobs:
       DOTNET_NOLOGO: true
 
     strategy:
+      fail-fast: true
+      max-parallel: 1
       matrix:
         include:
           - platform: linux-x64
