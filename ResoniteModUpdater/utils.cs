@@ -39,15 +39,38 @@ namespace ResoniteModUpdater
       }
       return defaultPath;
     }
+
+    public static string GetSettingsPath()
+    {
+      if (Environment.OSVersion.Platform == PlatformID.Unix)
+      {
+        string configDir = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")!;
+        if (string.IsNullOrEmpty(configDir))
+        {
+          configDir = Path.Combine(Environment.GetEnvironmentVariable("HOME")!, ".config");
+        }
+        string appConfigDir = Path.Combine(configDir, "ResoniteModUpdater");
+        Directory.CreateDirectory(appConfigDir);
+        return Path.Combine(appConfigDir, SettingsFileName);
+      }
+      else
+      {
+        return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", SettingsFileName);
+      }
+    }
+
     public static void SaveSettings(SettingsConfig settings)
     {
       var settingsJson = JsonConvert.SerializeObject(settings, Newtonsoft.Json.Formatting.Indented);
-      var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", SettingsFileName);
+
+      string settingsFilePath = GetSettingsPath();
+
       File.WriteAllText(settingsFilePath, settingsJson);
     }
     public static SettingsConfig? LoadSettings()
     {
-      var settingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", SettingsFileName);
+      string settingsFilePath = GetSettingsPath();
+
       if (File.Exists(settingsFilePath))
       {
         var settingsJson = File.ReadAllText(settingsFilePath);
