@@ -22,61 +22,95 @@
 
 ## Usage
 
-As of v2.3.0 ResoniteModUpdater now offers an interactive mode, which is the recommended way to use the tool.
+> [!NOTE]
+> If you have private mods or mods that you don't want to update, you can ignore mods by adding a `_` prefix to the mod's filename. 
 
-To start interactive mode, simply run it:
+ResoniteModUpdater offers both an interactive mode and a CLI mode.
+
+To start interactive mode, simply run:
 
 ```sh
 ResoniteModUpdater
 ```
 
-For CLI usage, all update functionality have been moved to the `update` subcommand:
+For CLI usage:
+
+```sh
+ResoniteModUpdater [OPTIONS] [COMMAND]
+```
+
+### Commands
+
+- `update`: Updates resonite mods
+- `search`: Searches for mods in the mod manifest
+
+### Options
+
+- `-h, --help`: Prints help information
+- `-v, --version`: Display version in use
+
+### Examples
+
+1. Update Resonite mods:
+
+```sh
+ResoniteModUpdater update
+```
+
+2. Update Resonite mods with a specific mods folder:
+
+```sh
+ResoniteModUpdater update ~/.steam/steam/steamapps/common/Resonite/rml_mods
+```
+
+3. Update Resonite mods with a GitHub authentication token:
+
+```sh
+ResoniteModUpdater update ~/.steam/steam/steamapps/common/Resonite/rml_mods -token xxxxxxxxxxxxxx
+```
+
+4. Search for mods:
+
+```sh
+ResoniteModUpdater search example
+```
+
+### Update Command
 
 ```sh
 ResoniteModUpdater update [ModsFolder] [OPTIONS]
 ```
 
+#### Arguments
+
+- `[ModsFolder]`: Path to resonite mods folder
+
+#### Options
+
+- `-h, --help`: Prints help information
+- `-t, --token`: GitHub authentication token for using GitHub's official API. Optional, alternative to RSS feed method
+- `-d, --dry`: Enables dry run mode. Checks for mod updates without installing them
+
+### Search Command
+
 ```sh
 ResoniteModUpdater search [QUERY] [OPTIONS]
 ```
 
-> [!NOTE]
-> If you have private mods or mods that you don't want to update, you can ignore mods by adding a `_` prefix to the mod's filename. 
+#### Arguments
 
-### Examples
+- `[QUERY]`: Query to search for in the mod manifest
 
-1. Update Resonite mods without using an authentication token:
+#### Options
 
-```sh
-ResoniteModUpdater update "C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_mods"
-```
-
-2. Update Resonite mods with a GitHub authentication token:
-
-```sh
-ResoniteModUpdater update "C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_mods" -token xxxxxxxxxxxxxx
-```
-
-### Arguments
-
-- `[ModsFolder]`: The path to the Resonite mods folder.
-
-### Commands
-
-- `update`: Updates the mods in the specified folder
-- `search`: Searches the manifest for mods (Alias: find)
-
-### Options
-
-- `-h, --help`: Prints help information, providing usage instructions for the tool.
-- `-v, --version`: Prints version information, displaying the version of ResoniteModUpdater.
-- `-t, --token`: GitHub authentication token. Use this option only if you plan to run the command multiple times within a short period. The token helps bypass GitHub's request limits (60 Requests per hour).
-- `-d, --dry`: Enables dry run mode. Checks for mod updates without installing them.
-- `search -m, --manifest`: Set alternative manifest json url. It must match the RML manifest schema (Advanced)
+- `-h, --help`: Prints help information
+- `-m, --manifest`: Set alternative manifest json url. It must match the RML manifest schema (Advanced)
 
 ## Settings File
 
 The `settings.json` file is used to store the settings for the Resonite Mod Updater. This file is automatically created in the root of the ResoniteModUpdater installation directory when you choose to save your settings.
+
+On Linux, the `settings.json` file is located either in `$XDG_CONFIG_HOME/ResoniteModUpdater` or `$HOME/.config/ResoniteModUpdater`.
 
 Here is an example of what the `settings.json` file might look like:
 
