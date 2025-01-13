@@ -54,7 +54,7 @@ jobs:
         run: vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
 
       - name: Pack New Release
-        run: vpk -y ${{ startsWith(matrix.platform, 'win') && '[win] ' || '' }}pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r ${{ matrix.platform }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} ${{ matrix.extra-args }} -p publish/${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
+        run: vpk ${{ startsWith(matrix.platform, 'win') && '[win] ' || '' }}pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r ${{ matrix.platform }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} ${{ matrix.extra-args }} -p publish/${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
 
       - name: Rename and Update Portable Package
         if: matrix.is-portable
