@@ -6,78 +6,77 @@ namespace ResoniteModUpdater
 
   public class ManifestData
   {
-    public required Dictionary<string, ManifestObject> Objects { get; set; }
+    public required Dictionary<string, ManifestObject> Objects { get; init; }
 
     [JsonPropertyName("schemaVersion")]
-    public required string SchemaVersion { get; set; }
+    public required string SchemaVersion { get; init; }
   }
 
   public class ManifestObject
   {
     [JsonPropertyName("author")]
-    public required Dictionary<string, ManifestAuthor> Author { get; set; }
+    public required Dictionary<string, ManifestAuthor> Author { get; init; }
 
-    public required Dictionary<string, ManifestEntry> Entries { get; set; }
+    public required Dictionary<string, ManifestEntry> Entries { get; init; }
   }
 
   public class ManifestAuthor
   {
-    public required Uri Url { get; set; }
-    public Uri? Icon { get; set; }
-    public Uri? Support { get; set; }
+    public required Uri Url { get; init; }
+    public Uri? Icon { get; init; }
+    public Uri? Support { get; init; }
   }
 
   public class ManifestEntry
   {
-    public required string Name { get; set; }
-    public required string Description { get; set; }
-    public required string Category { get; set; }
+    public required string Name { get; init; }
+    public required string Description { get; init; }
+    public required string Category { get; init; }
 
     [JsonPropertyName("sourceLocation")]
-    public Uri? SourceLocation { get; set; }
+    public Uri? SourceLocation { get; init; }
 
-    public Uri? Website { get; set; }
-    public List<string>? Tags { get; set; }
-    public List<string>? Flags { get; set; }
-    public List<string>? Platforms { get; set; }
+    public Uri? Website { get; init; }
+    public List<string>? Tags { get; init; } = new();
+    public List<string>? Flags { get; init; } = new();
+    public List<string>? Platforms { get; init; } = new();
 
     [JsonPropertyName("additionalAuthors")]
-    public Dictionary<string, ManifestAuthor>? AdditionalAuthors { get; set; }
+    public Dictionary<string, ManifestAuthor>? AdditionalAuthors { get; init; } = new();
 
-    public required Dictionary<string, ManifestEntryVersion> Versions { get; set; }
+    public required Dictionary<string, ManifestEntryVersion> Versions { get; init; }
   }
 
   public class ManifestEntryVersion
   {
-    public required List<ManifestEntryArtifact> Artifacts { get; set; }
-    public Dictionary<string, ManifestEntryDependency>? Dependencies { get; set; }
-    public Dictionary<string, ManifestEntryDependency>? Conflicts { get; set; }
+    public required List<ManifestEntryArtifact> Artifacts { get; init; }
+    public Dictionary<string, ManifestEntryDependency>? Dependencies { get; init; } = new();
+    public Dictionary<string, ManifestEntryDependency>? Conflicts { get; init; } = new();
 
     [JsonPropertyName("releaseUrl")]
-    public Uri? ReleaseUrl { get; set; }
+    public Uri? ReleaseUrl { get; init; }
   }
 
   public class ManifestEntryArtifact
   {
-    public required Uri Url { get; set; }
-    public required string Sha256 { get; set; }
-    public string? Filename { get; set; }
+    public required Uri Url { get; init; }
+    public required string Sha256 { get; init; }
+    public string? Filename { get; init; }
 
     [JsonPropertyName("installLocation")]
-    public string? InstallLocation { get; set; }
+    public string? InstallLocation { get; init; }
   }
 
   public class ManifestEntryDependency
   {
-    // Assuming VersionReq is a simple string representation of version requirements
-    public required string Version { get; set; }
+    public required string Version { get; init; }
   }
   public class SearchResult
   {
-    public required ManifestEntry Entry { get; set; }
-    public required string ID { get; set; }
-    public required string AuthorName { get; set; }
-    public required string LatestVersion { get; set; }
-    public required Uri AuthorUrl { get; set; }
+    public required ManifestEntry Entry { get; init; }
+    public required string ID { get; init; }
+    public required string AuthorName { get; init; }
+    public required string LatestVersion { get; init; }
+    public required Uri AuthorUrl { get; init; }
   }
 }
