@@ -14,7 +14,7 @@ jobs:
     env:
       PROJECT: ResoniteModUpdater
       DOTNET_VERSION: '9.0.x'
-      VPK_VERSION: '0.0.1053'
+      VPK_VERSION: '0.0.1251'
       DOTNET_NOLOGO: true
 
     strategy:
