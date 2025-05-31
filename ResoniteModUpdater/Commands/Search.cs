@@ -102,22 +102,33 @@ namespace ResoniteModUpdater.Commands.Search
 
     private Uri? GetReleaseUrl(SearchResult result)
     {
-      if (result.Entry.Versions[result.LatestVersion].ReleaseUrl != null)
+      if (result.Entry.Versions.TryGetValue(result.LatestVersion, out var versionEntry))
       {
-        return result.Entry.Versions[result.LatestVersion].ReleaseUrl;
-      }
-      else if (result.Entry.Versions[result.LatestVersion].Artifacts.Last().Url.Host.EndsWith("github.com"))
-      {
-        Uri uri = result.Entry.Versions[result.LatestVersion].Artifacts.Last().Url;
-        string path = uri.AbsolutePath;
-        string[] pathParts = path.Split('/');
-        string repoOwner = pathParts[1];
-        string repoName = pathParts[2];
-        string tagOrVersion = pathParts[5];
+        if (versionEntry.ReleaseUrl != null)
+        {
+          return versionEntry.ReleaseUrl;
+        }
 
-        return new Uri($"https://github.com/{repoOwner}/{repoName}/releases/tag/{tagOrVersion}");
+        var lastArtifact = versionEntry.Artifacts?.LastOrDefault();
+        if (lastArtifact?.Url != null && lastArtifact.Url.Host.EndsWith("github.com"))
+        {
+          Uri artifactUri = lastArtifact.Url;
+          string[] pathParts = artifactUri.AbsolutePath.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+          // Expected structure: {owner}/{repo}/releases/download/{tag}/{filename}
+          if (pathParts.Length >= 5 && pathParts[2].Equals("releases", StringComparison.OrdinalIgnoreCase) && pathParts[3].Equals("download", StringComparison.OrdinalIgnoreCase))
+          {
+            string repoOwner = pathParts[0];
+            string repoName = pathParts[1];
+            string tagOrVersion = pathParts[4];
+            if (Uri.TryCreate($"https://github.com/{repoOwner}/{repoName}/releases/tag/{tagOrVersion}", UriKind.Absolute, out var releasePageUrl))
+            {
+              return releasePageUrl;
+            }
+          }
+        }
       }
-      else if (result.Entry.SourceLocation != null)
+
+      if (result.Entry.SourceLocation != null)
       {
         return result.Entry.SourceLocation;
       }
