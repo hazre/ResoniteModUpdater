@@ -86,6 +86,7 @@ namespace ResoniteModUpdater
       public const string NoSearchTerm = "No search term provided";
       public const string NoResultsQuery = "No results found for query: {0}";
       public const string ForbiddenRetry = "Attempt {0}: Access to the resource is forbidden. Retrying in 1 minute...";
+      public const string ForbiddenRetryWithDelay = "Attempt {0}: Access to the resource is forbidden. Retrying in {1} seconds...";
       public const string Forbidden = "Access to the resource is forbidden after multiple attempts.";
       public const string InvalidToken = "Invalid token provided";
       public const string UpdateFailed = "Something went wrong trying to update {0}";
