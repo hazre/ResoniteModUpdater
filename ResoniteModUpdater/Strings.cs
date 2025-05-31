@@ -4,7 +4,7 @@ namespace ResoniteModUpdater
   {
     public static class Application
     {
-      public static string AppName = "ResoniteModUpdater";
+      public const string AppName = "ResoniteModUpdater";
     }
     public static class Commands
     {

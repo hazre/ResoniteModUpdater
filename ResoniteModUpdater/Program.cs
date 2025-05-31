@@ -10,6 +10,7 @@ namespace ResoniteModUpdater
 {
     public static class Program
     {
+        private static readonly string AppUpdateRepoUrl = "https://github.com/hazre/ResoniteModUpdater";
         public static async Task<int> Main(string[] args)
         {
             VelopackApp.Build().Run();
@@ -44,7 +45,7 @@ namespace ResoniteModUpdater
         {
             try
             {
-                var mgr = new UpdateManager(new GithubSource("https://github.com/hazre/ResoniteModUpdater", null, false));
+                var mgr = new UpdateManager(new GithubSource(AppUpdateRepoUrl, null, false));
 
                 AnsiConsole.MarkupLine(Strings.Messages.CheckingForUpdate);
                 var newVersion = await mgr.CheckForUpdatesAsync();
