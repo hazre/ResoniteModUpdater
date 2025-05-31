@@ -36,7 +36,7 @@ namespace ResoniteModUpdater.Commands.Default
       while (true)
       {
         AnsiConsole.Clear();
-        DisplayHeaderCommands();
+        DisplayMainMenuHeader();
         var choice = ShowMainMenu();
 
         var loadedSettings = Utils.LoadSettings();
@@ -80,10 +80,9 @@ namespace ResoniteModUpdater.Commands.Default
       }
     }
 
-    private void DisplayHeaderCommands()
+    private void DisplayMainMenuHeader()
     {
-      var version = Assembly.GetEntryAssembly()?.GetName().Version;
-      var versionString = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "";
+      var versionString = Utils.GetVersion();
 
       var table = new Table().HideHeaders().NoBorder();
       table.Title($"[yellow]{Strings.Application.AppName}[/] [b]v{versionString}[/]");
@@ -104,33 +103,6 @@ namespace ResoniteModUpdater.Commands.Default
           new Markup($"[yellow]{Strings.MenuOptions.SearchModManifest}[/]"),
           new Markup(Strings.Descriptions.SearchModManifest));
 
-
-
-      AnsiConsole.WriteLine();
-      AnsiConsole.Write(table);
-      AnsiConsole.WriteLine();
-    }
-    private void DisplayHeaderUpdateOptions()
-    {
-      var table = new Table().HideHeaders().NoBorder();
-      table.Title($"[yellow]{Strings.Application.AppName}[/] [b]v{Utils.GetVersion()}[/]");
-      table.AddColumn("col1", c => c.NoWrap().RightAligned().Width(10).PadRight(3));
-      table.AddColumn("col2", c => c.PadRight(0));
-      table.AddEmptyRow();
-
-      table.AddEmptyRow();
-      table.AddRow(
-          new Markup("[yellow]Options[/]"),
-          new Grid().Expand().AddColumns(2)
-          .AddRow(
-              "ModsFolder",
-              Strings.Descriptions.ModsFolder)
-          .AddRow(
-              "DryMode",
-              Strings.Descriptions.DryMode)
-          .AddRow(
-              "Token",
-              Strings.Descriptions.Token));
 
 
       AnsiConsole.WriteLine();
