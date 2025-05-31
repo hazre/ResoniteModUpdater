@@ -72,6 +72,8 @@ namespace ResoniteModUpdater
       public const string InstallingUpdate = "Installing new version and restarting..";
       public const string NoUpdateLibraries = "No update available for {0}";
 
+      public const string CheckingForUpdate = "Checking for application updates...";
+      public const string NoUpdateAvailable = "No application updates available.";
     }
     public static class Errors
     {

@@ -64,8 +64,15 @@ namespace ResoniteModUpdater
       var settingsJson = JsonConvert.SerializeObject(settings, Newtonsoft.Json.Formatting.Indented);
 
       string settingsFilePath = GetSettingsPath();
-
-      File.WriteAllText(settingsFilePath, settingsJson);
+      try
+      {
+        File.WriteAllText(settingsFilePath, settingsJson);
+      }
+      catch (Exception ex)
+      {
+        AnsiConsole.MarkupLine($"[red]Error saving settings to {settingsFilePath}:[/]");
+        AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+      }
     }
     public static SettingsConfig? LoadSettings()
     {
@@ -73,8 +80,16 @@ namespace ResoniteModUpdater
 
       if (File.Exists(settingsFilePath))
       {
-        var settingsJson = File.ReadAllText(settingsFilePath);
-        return JsonConvert.DeserializeObject<SettingsConfig>(settingsJson);
+        try
+        {
+          var settingsJson = File.ReadAllText(settingsFilePath);
+          return JsonConvert.DeserializeObject<SettingsConfig>(settingsJson);
+        }
+        catch (Exception ex)
+        {
+          AnsiConsole.MarkupLine($"[red]Error loading or parsing settings from {settingsFilePath}:[/]");
+          AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+        }
       }
       return null;
     }
@@ -137,7 +152,24 @@ namespace ResoniteModUpdater
         if (response.IsSuccessStatusCode)
         {
           var responseBody = await response.Content.ReadAsStringAsync();
-          dynamic release = JsonConvert.DeserializeObject(responseBody)!;
+          dynamic? release = null;
+          try
+          {
+            release = JsonConvert.DeserializeObject(responseBody)!;
+          }
+          catch (JsonException jsonEx)
+          {
+            AnsiConsole.MarkupLine($"[red]Error parsing JSON response from {apiUrl}:[/]");
+            AnsiConsole.WriteException(jsonEx, ExceptionFormats.ShortenEverything);
+            return (-1, null);
+          }
+
+          if (release == null || release.assets == null)
+          {
+            AnsiConsole.MarkupLine($"[red]Unexpected JSON structure from {apiUrl}. 'assets' field is missing or null.[/]");
+            return (-1, null); // Indicate error
+          }
+
           JArray assets = release.assets;
           foreach (dynamic asset in assets)
           {
@@ -162,6 +194,15 @@ namespace ResoniteModUpdater
         else if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
           throw new Exception(Strings.Errors.InvalidToken);
+        }
+        else
+        {
+          AnsiConsole.MarkupLine($"[red]Failed to fetch release information from {apiUrl}. Status code: {response.StatusCode}[/]");
+          var errorBody = await response.Content.ReadAsStringAsync();
+          if (!string.IsNullOrWhiteSpace(errorBody))
+          {
+            AnsiConsole.MarkupLine($"[red]Response: {errorBody.Substring(0, Math.Min(errorBody.Length, 500))}[/]");
+          }
         }
         return (3, null);
       }
@@ -224,7 +265,18 @@ namespace ResoniteModUpdater
       var results = new List<SearchResult>();
       string manifestContent = await DownloadManifest(manifestUrl);
       if (string.IsNullOrEmpty(manifestContent)) return results;
-      var manifest = JsonConvert.DeserializeObject<ManifestData>(manifestContent);
+      ManifestData? manifest = null;
+      try
+      {
+        manifest = JsonConvert.DeserializeObject<ManifestData>(manifestContent);
+      }
+      catch (JsonException jsonEx)
+      {
+        AnsiConsole.MarkupLine($"[red]Error parsing manifest JSON from {manifestUrl}:[/]");
+        AnsiConsole.WriteException(jsonEx, ExceptionFormats.ShortenEverything);
+        return results;
+      }
+
       if (manifest?.Objects == null) return results;
       foreach (var authorKey in manifest.Objects.Values)
       {
@@ -252,7 +304,22 @@ namespace ResoniteModUpdater
     private static async Task<string> DownloadManifest(string url)
     {
       using HttpClient client = new HttpClient();
-      return await client.GetStringAsync(url);
+      try
+      {
+        return await client.GetStringAsync(url);
+      }
+      catch (HttpRequestException httpEx)
+      {
+        AnsiConsole.MarkupLine($"[red]Error downloading manifest from {url}:[/]");
+        AnsiConsole.WriteException(httpEx, ExceptionFormats.ShortenEverything);
+        return string.Empty;
+      }
+      catch (Exception ex)
+      {
+        AnsiConsole.MarkupLine($"[red]An unexpected error occurred while downloading manifest from {url}:[/]");
+        AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+        return string.Empty;
+      }
     }
     public static void NotifyOverriddenSettings(List<string> overriddenSettings)
     {
@@ -394,7 +461,7 @@ namespace ResoniteModUpdater
                 return path switch
                 {
                   _ when string.IsNullOrWhiteSpace(path) => ValidationResult.Success(),
-                  _ when !Directory.Exists(path) => ValidationResult.Error("test"),
+                  _ when !Directory.Exists(path) => ValidationResult.Error(Strings.Errors.NotValidDirectory),
                   _ => ValidationResult.Success(),
                 };
               }));

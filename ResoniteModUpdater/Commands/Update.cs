@@ -37,7 +37,33 @@ namespace ResoniteModUpdater.Commands.Update
 
       (var settingsConfig, var loadedSettings, var overriddenSettings) = await Utils.LoadAndOverrideSettingsAsync(settings);
 
-      var urls = Utils.GetFiles(settingsConfig.ModsFolder!);
+      Dictionary<string, string?> urls;
+      try
+      {
+        if (string.IsNullOrEmpty(settingsConfig.ModsFolder))
+        {
+          AnsiConsole.MarkupLine($"[red]Mods folder path is not configured. Please set it via settings or command line.[/]");
+          if (settings.ReadKeyExit)
+          {
+            AnsiConsole.MarkupLine($"[slateblue3]{Strings.Messages.PressKeyExit}[/]");
+            Console.ReadKey();
+          }
+          return 1;
+        }
+        urls = Utils.GetFiles(settingsConfig.ModsFolder);
+      }
+      catch (Exception ex)
+      {
+        AnsiConsole.MarkupLine($"[red]Error accessing mods folder '{settingsConfig.ModsFolder}':[/]");
+        AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+        if (settings.ReadKeyExit)
+        {
+          AnsiConsole.MarkupLine($"[slateblue3]{Strings.Messages.PressKeyExit}[/]");
+          Console.ReadKey();
+        }
+        return 1;
+      }
+
       if (!urls.Any())
       {
         AnsiConsole.MarkupLine($"[red]{Strings.Errors.NoModsToUpdate}[/]");
