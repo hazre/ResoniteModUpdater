@@ -116,7 +116,8 @@ namespace ResoniteModUpdater
         }
         catch (Exception ex)
         {
-          AnsiConsole.MarkupLine($"{Path.GetFileName(dllFile)}: [red]{ex.Message}[/]");
+          AnsiConsole.MarkupLine($"[red]Error processing {Path.GetFileName(dllFile)}:[/]");
+          AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
         }
       }
       var sortedUrlDictionary = urlDictionary.OrderBy(pair => pair.Key).ToDictionary(pair => pair.Key, pair => pair.Value);
@@ -181,8 +182,9 @@ namespace ResoniteModUpdater
         string downloadUrl = $"https://github.com/{owner}/{repo}/releases/download/{tag}/{Path.GetFileName(dllFile)}";
         return await DownloadAndValidateDLL(dllFile, downloadUrl, dryMode);
       }
-      catch
+      catch (Exception ex)
       {
+        AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
         return (-1, null);
       }
     }
@@ -206,8 +208,9 @@ namespace ResoniteModUpdater
           return (1, null);
         }
       }
-      catch
+      catch (Exception ex)
       {
+        AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
         return (-1, null);
       }
     }

@@ -70,7 +70,7 @@ namespace ResoniteModUpdater.Commands.Default
         }
         catch (Exception ex)
         {
-          AnsiConsole.MarkupLine($"[red]{string.Format(Strings.Errors.Exception, ex.Message)}[/]");
+          AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
         }
 
         if (!AnsiConsole.Confirm(Strings.Prompts.ReturnToMainMenu))

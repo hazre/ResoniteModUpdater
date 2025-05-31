@@ -80,6 +80,7 @@ namespace ResoniteModUpdater
       public const string NoModsToUpdate = "No Mods found to update.";
       public const string DLLNotFoundSkipping = "{0} not found. Skipping..";
       public const string Exception = "An error occurred: {0}";
+      public const string DetailedException = "An error occurred: {0}\nStack Trace:\n{1}";
       public const string NoSearchTerm = "No search term provided";
       public const string NoResultsQuery = "No results found for query: {0}";
       public const string ForbiddenRetry = "Attempt {0}: Access to the resource is forbidden. Retrying in 1 minute...";
