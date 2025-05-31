@@ -5,8 +5,20 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ResoniteModUpdater.Commands.Update
 {
+  public enum ModUpdateResultStatus
+  {
+    Updated = 0,
+    UpToDate = 1,
+    NoLinkFound = 2,
+    InvalidLink = 3,
+    Ignored = 4,
+    Error = -1
+  }
+
   internal sealed class UpdateCommand : AsyncCommand<UpdateCommand.Settings>
   {
+    private readonly List<(string ModName, string? UrlAttempted, Exception Error)> _updateErrors = new();
+
     public sealed class Settings : CommandSettings
     {
       [Description(Strings.Descriptions.ModsFolder)]
@@ -37,7 +49,33 @@ namespace ResoniteModUpdater.Commands.Update
 
       (var settingsConfig, var loadedSettings, var overriddenSettings) = await Utils.LoadAndOverrideSettingsAsync(settings);
 
-      var urls = Utils.GetFiles(settingsConfig.ModsFolder!);
+      Dictionary<string, string?> urls;
+      try
+      {
+        if (string.IsNullOrEmpty(settingsConfig.ModsFolder))
+        {
+          AnsiConsole.MarkupLine($"[red]Mods folder path is not configured. Please set it via settings or command line.[/]");
+          if (settings.ReadKeyExit)
+          {
+            AnsiConsole.MarkupLine($"[slateblue3]{Strings.Messages.PressKeyExit}[/]");
+            Console.ReadKey();
+          }
+          return 1;
+        }
+        urls = Utils.GetFiles(settingsConfig.ModsFolder);
+      }
+      catch (Exception ex)
+      {
+        AnsiConsole.MarkupLine($"[red]Error accessing mods folder '{settingsConfig.ModsFolder}':[/]");
+        AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+        if (settings.ReadKeyExit)
+        {
+          AnsiConsole.MarkupLine($"[slateblue3]{Strings.Messages.PressKeyExit}[/]");
+          Console.ReadKey();
+        }
+        return 1;
+      }
+
       if (!urls.Any())
       {
         AnsiConsole.MarkupLine($"[red]{Strings.Errors.NoModsToUpdate}[/]");
@@ -77,27 +115,48 @@ namespace ResoniteModUpdater.Commands.Update
           {
             foreach (var (dllFile, urlValue) in urls)
             {
-              int status;
+              ModUpdateResultStatus status;
               string? releaseUrl = null;
+              Exception? error = null;
+
               if (urlValue == null)
               {
-                status = 2;
+                status = ModUpdateResultStatus.NoLinkFound;
               }
               else if (urlValue == "_")
               {
-                status = 4;
+                status = ModUpdateResultStatus.Ignored;
               }
               else
               {
-                (status, releaseUrl) = await UpdateMod(dllFile, urlValue, settingsConfig);
+                (status, releaseUrl, error) = await UpdateMod(dllFile, urlValue, settingsConfig);
+                if (error != null)
+                {
+                  _updateErrors.Add((Path.GetFileName(dllFile), releaseUrl, error));
+                }
               }
-              AddStatusToTable(table, status, dllFile, releaseUrl, settingsConfig.DryMode);
+              AddStatusToTable(table, status, dllFile, releaseUrl, settingsConfig.DryMode, error?.Message);
               ctx.Refresh();
             }
           });
+
+      if (_updateErrors.Any())
+      {
+        AnsiConsole.MarkupLine("\n[bold red]Errors Occurred During Update:[/]");
+        foreach (var (modName, urlAttempted, ex) in _updateErrors)
+        {
+          AnsiConsole.MarkupLine($"\n[bold yellow]Error updating {modName}:[/]");
+          if (!string.IsNullOrEmpty(urlAttempted))
+          {
+            AnsiConsole.MarkupLine($"[grey]Attempted URL: {Markup.Escape(urlAttempted)}[/]");
+          }
+          AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+        }
+        _updateErrors.Clear();
+      }
     }
 
-    private async Task<(int, string?)> UpdateMod(string dllFile, string urlValue, Utils.SettingsConfig settingsConfig)
+    private async Task<(ModUpdateResultStatus Status, string? Url, Exception? Error)> UpdateMod(string dllFile, string urlValue, Utils.SettingsConfig settingsConfig)
     {
       if (!string.IsNullOrEmpty(settingsConfig.Token))
       {
@@ -109,19 +168,21 @@ namespace ResoniteModUpdater.Commands.Update
       }
     }
 
-    private void AddStatusToTable(Table table, int status, string dllFile, string? releaseUrl, bool dryMode)
+    private void AddStatusToTable(Table table, ModUpdateResultStatus status, string dllFile, string? releaseUrl, bool dryMode, string? errorMessage = null)
     {
       var (symbol, statusText) = status switch
       {
-        0 => (Strings.ModStatus.Symbols.Update, dryMode ? $"[green]{Strings.ModStatus.UpdateAvailable}[/]" : $"[green]{Strings.ModStatus.Updated}[/]"),
-        1 => (Strings.ModStatus.Symbols.NoChange, $"[dim]{Strings.ModStatus.UpToDate}[/]"),
-        2 => (Strings.ModStatus.Symbols.Issue, $"[red]{Strings.ModStatus.NoLinkFound}[/]"),
-        3 => (Strings.ModStatus.Symbols.Issue, $"[red]{Strings.ModStatus.InvalidLink}[/]"),
-        4 => (Strings.ModStatus.Symbols.NoChange, $"[dim]{Strings.ModStatus.Ignored}[/]"),
-        _ => (Strings.ModStatus.Symbols.Issue, $"[red]{Strings.ModStatus.Error}[/]")
+        ModUpdateResultStatus.Updated => (Strings.ModStatus.Symbols.Update, dryMode ? $"[green]{Strings.ModStatus.UpdateAvailable}[/]" : $"[green]{Strings.ModStatus.Updated}[/]"),
+        ModUpdateResultStatus.UpToDate => (Strings.ModStatus.Symbols.NoChange, $"[dim]{Strings.ModStatus.UpToDate}[/]"),
+        ModUpdateResultStatus.NoLinkFound => (Strings.ModStatus.Symbols.Issue, $"[red]{Strings.ModStatus.NoLinkFound}[/]"),
+        ModUpdateResultStatus.InvalidLink => (Strings.ModStatus.Symbols.Issue, $"[red]{Strings.ModStatus.InvalidLink}[/]"),
+        ModUpdateResultStatus.Ignored => (Strings.ModStatus.Symbols.NoChange, $"[dim]{Strings.ModStatus.Ignored}[/]"),
+        ModUpdateResultStatus.Error => (Strings.ModStatus.Symbols.Issue, $"[red]{Strings.ModStatus.Error}{(string.IsNullOrEmpty(errorMessage) ? "" : $": {Markup.Escape(errorMessage.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "")}")}[/]"),
+        _ => (Strings.ModStatus.Symbols.Issue, $"[red]Unknown Status[/]")
       };
 
-      table.AddRow($"[orange1]{symbol}[/]", Path.GetFileName(dllFile), statusText, $"[link={releaseUrl}]{releaseUrl}[/]");
+      string linkMarkup = string.IsNullOrEmpty(releaseUrl) ? string.Empty : $"[link={releaseUrl}]{Markup.Escape(releaseUrl)}[/]";
+      table.AddRow($"[orange1]{symbol}[/]", Path.GetFileName(dllFile), statusText, linkMarkup);
     }
   }
 }

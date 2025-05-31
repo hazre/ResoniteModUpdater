@@ -4,7 +4,7 @@ namespace ResoniteModUpdater
   {
     public static class Application
     {
-      public static string AppName = "ResoniteModUpdater";
+      public const string AppName = "ResoniteModUpdater";
     }
     public static class Commands
     {
@@ -72,6 +72,8 @@ namespace ResoniteModUpdater
       public const string InstallingUpdate = "Installing new version and restarting..";
       public const string NoUpdateLibraries = "No update available for {0}";
 
+      public const string CheckingForUpdate = "Checking for application updates...";
+      public const string NoUpdateAvailable = "No application updates available.";
     }
     public static class Errors
     {
@@ -80,9 +82,11 @@ namespace ResoniteModUpdater
       public const string NoModsToUpdate = "No Mods found to update.";
       public const string DLLNotFoundSkipping = "{0} not found. Skipping..";
       public const string Exception = "An error occurred: {0}";
+      public const string DetailedException = "An error occurred: {0}\nStack Trace:\n{1}";
       public const string NoSearchTerm = "No search term provided";
       public const string NoResultsQuery = "No results found for query: {0}";
       public const string ForbiddenRetry = "Attempt {0}: Access to the resource is forbidden. Retrying in 1 minute...";
+      public const string ForbiddenRetryWithDelay = "Attempt {0}: Access to the resource is forbidden. Retrying in {1} seconds...";
       public const string Forbidden = "Access to the resource is forbidden after multiple attempts.";
       public const string InvalidToken = "Invalid token provided";
       public const string UpdateFailed = "Something went wrong trying to update {0}";

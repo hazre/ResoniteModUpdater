@@ -10,6 +10,7 @@ namespace ResoniteModUpdater
 {
     public static class Program
     {
+        private static readonly string AppUpdateRepoUrl = "https://github.com/hazre/ResoniteModUpdater";
         public static async Task<int> Main(string[] args)
         {
             VelopackApp.Build().Run();
@@ -42,21 +43,30 @@ namespace ResoniteModUpdater
         }
         public static async Task UpdateMyApp()
         {
-            var mgr = new UpdateManager(new GithubSource("https://github.com/hazre/ResoniteModUpdater", null, false));
-            var newVersion = await mgr.CheckForUpdatesAsync();
-            if (newVersion == null) return;
+            try
+            {
+                var mgr = new UpdateManager(new GithubSource(AppUpdateRepoUrl, null, false));
 
-            if (!AnsiConsole.Confirm($"{Strings.Prompts.Update} ({Utils.GetVersion()} -> {newVersion.TargetFullRelease.Version})")) return;
+                AnsiConsole.MarkupLine(Strings.Messages.CheckingForUpdate);
+                var newVersion = await mgr.CheckForUpdatesAsync();
+                if (newVersion == null)
+                {
+                    AnsiConsole.MarkupLine(Strings.Messages.NoUpdateAvailable);
+                    return;
+                }
 
-            // download new version
-            AnsiConsole.WriteLine(Strings.Messages.DownloadingUpdate);
-            await Task.Delay(1000);
-            await mgr.DownloadUpdatesAsync(newVersion);
+                if (!AnsiConsole.Confirm($"{Strings.Prompts.Update} ({Utils.GetVersion()} -> {newVersion.TargetFullRelease.Version})")) return;
 
-            // install new version and restart app
-            AnsiConsole.WriteLine(Strings.Messages.InstallingUpdate);
-            await Task.Delay(1000);
-            mgr.ApplyUpdatesAndRestart(newVersion);
+                AnsiConsole.MarkupLine(Strings.Messages.DownloadingUpdate);
+                await mgr.DownloadUpdatesAsync(newVersion);
+
+                AnsiConsole.MarkupLine(Strings.Messages.InstallingUpdate);
+                mgr.ApplyUpdatesAndRestart(newVersion);
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+            }
         }
     }
 }

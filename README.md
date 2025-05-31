@@ -6,7 +6,7 @@
 
 ## Prerequisites
 - .NET 8.0 or higher is required
-  - The Windows installer will automatically install .NET 8.0 if you don't have it
+  - The Windows installer will automatically install .NET 9.0 if you don't have it
 
 ## Installation
 
