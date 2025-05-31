@@ -10,7 +10,7 @@ jobs:
       contents: write
     env:
       PROJECT: ResoniteModUpdater
-      DOTNET_VERSION: '8.0.x'
+      DOTNET_VERSION: '9.0.x'
       VPK_VERSION: '0.0.1251'
       DOTNET_NOLOGO: true
 
@@ -24,7 +24,7 @@ jobs:
             extra-args: ''
           - platform: win-x64
             self-contained: false
-            extra-args: '--noPortable --framework net8.0-x64-runtime'
+            extra-args: '--noPortable --framework net9.0-x64-runtime'
           - platform: win-x64
             self-contained: true
             extra-args: '--noInst --packTitle win-x64-portable'
