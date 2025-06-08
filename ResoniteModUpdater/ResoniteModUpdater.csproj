@@ -9,7 +9,7 @@
     <Authors>hazre</Authors>
     <RepositoryUrl>https://github.com/hazre/ResoniteModUpdater</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <AssemblyVersion>2.4.0</AssemblyVersion>
+    <AssemblyVersion>2.4.1</AssemblyVersion>
     <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
 
@@ -27,7 +27,7 @@
     <PackageReference Include="Spectre.Console" Version="0.50.0" />
     <PackageReference Include="Spectre.Console.Cli" Version="0.50.0" />
     <PackageReference Include="System.ServiceModel.Syndication" Version="9.0.5" />
-    <PackageReference Include="Velopack" Version="0.0.1251" />
+    <PackageReference Include="Velopack" Version="0.0.1298" />
   </ItemGroup>
 
 </Project>
