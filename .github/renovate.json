@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "config:recommended",
+    ":disableDependencyDashboard",
+    ":semanticCommitTypeAll(chore)",
+    ":automergeStableNonMajor"
+  ],
+  "platformAutomerge": true,
+  "lockFileMaintenance": {
+    "enabled": true
+  }
+}
