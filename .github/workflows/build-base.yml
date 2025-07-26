@@ -1,0 +1,100 @@
+name: Build Base
+
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: "Project version"
+        value: ${{ jobs.build.outputs.version }}
+      title:
+        description: "Project title"
+        value: ${{ jobs.build.outputs.title }}
+      authors:
+        description: "Project authors"
+        value: ${{ jobs.build.outputs.authors }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      title: ${{ steps.get-title.outputs.title }}
+      authors: ${{ steps.get-authors.outputs.authors }}
+    env:
+      PROJECT: ResoniteModUpdater
+      DOTNET_VERSION: '9.0.x'
+      DOTNET_NOLOGO: true
+
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        include:
+          - platform: linux-x64
+            self-contained: true
+            extra-args: ''
+          - platform: win-x64
+            self-contained: false
+            extra-args: '--noPortable --framework net9.0-x64-runtime'
+          - platform: win-x64
+            self-contained: true
+            extra-args: '--noInst'
+            is-portable: true
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Get Version from Project File
+        id: get-version
+        shell: bash
+        run: echo "version=$(grep -oE '<AssemblyVersion>[^<]+' ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj | sed 's/<AssemblyVersion>//' | xargs)" >> $GITHUB_OUTPUT
+
+      - name: Get Title from Project File
+        id: get-title
+        shell: bash
+        run: echo "title=$(grep -oE '<Title>[^<]+' ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj | sed 's/<Title>//' | xargs)" >> $GITHUB_OUTPUT
+
+      - name: Get Authors from Project File
+        id: get-authors
+        shell: bash
+        run: echo "authors=$(grep -oE '<Authors>[^<]+' ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj | sed 's/<Authors>//' | xargs)" >> $GITHUB_OUTPUT
+
+      - name: Get Velopack Version from Project File
+        id: get-vpk-version
+        shell: bash
+        run: echo "vpk-version=$(grep -oE '<PackageReference Include="Velopack" Version="[^"]+' ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj | sed 's/.*Version="//' | xargs)" >> $GITHUB_OUTPUT
+
+      - name: Install Velopack CLI
+        run: |
+          dotnet tool install -g vpk --version ${{ steps.get-vpk-version.outputs.vpk-version }}
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Build Project
+        run: dotnet publish ${{ env.PROJECT }}/${{ env.PROJECT }}.csproj -c Release -o publish/${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -r ${{ matrix.platform }} ${{ matrix.self-contained && '--self-contained' || '--no-self-contained' }}
+
+      - name: Download Previous Releases
+        run: vpk download github --repoUrl ${{ github.server_url }}/${{ github.repository }} --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
+
+      - name: Pack New Release
+        run: vpk ${{ startsWith(matrix.platform, 'win') && '[win]' || '' }} -x -y pack -u ${{ env.PROJECT }} -v ${{ steps.get-version.outputs.version }} -r ${{ matrix.platform }} --packTitle "${{ steps.get-title.outputs.title }}" --packAuthors "${{ steps.get-authors.outputs.authors }}" --channel ${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} ${{ matrix.extra-args }} -p publish/${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }} -o releases
+
+      - name: Rename and Update Portable Package
+        if: matrix.is-portable
+        run: |
+          mv releases/${{ env.PROJECT }}-${{ matrix.platform }}-portable-Portable.zip releases/${{ env.PROJECT }}-${{ matrix.platform }}-portable.zip
+          JSON_FILE="./releases/assets.${{ matrix.platform }}-portable.json"
+          sed -i 's/ResoniteModUpdater-win-x64-portable-Portable.zip/ResoniteModUpdater-win-x64-portable.zip/g' "$JSON_FILE"
+
+      - name: Upload Build Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-outputs-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}
+          path: |
+            releases/
+          retention-days: 1
