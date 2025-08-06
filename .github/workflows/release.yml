@@ -17,19 +17,19 @@ jobs:
       contents: write
     steps:
       - name: Download Build Outputs (Linux)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: build-outputs-linux-x64
           path: .
 
       - name: Download Build Outputs (Windows)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: build-outputs-win-x64
           path: .
 
       - name: Download Build Outputs (Windows Portable)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: build-outputs-win-x64-portable
           path: .
