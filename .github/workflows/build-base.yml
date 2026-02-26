@@ -92,7 +92,7 @@ jobs:
           sed -i 's/ResoniteModUpdater-win-x64-portable-Portable.zip/ResoniteModUpdater-win-x64-portable.zip/g' "$JSON_FILE"
 
       - name: Upload Build Outputs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-outputs-${{ matrix.platform }}${{ matrix.is-portable && '-portable' || '' }}
           path: |
