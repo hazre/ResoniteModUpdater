@@ -27,7 +27,7 @@
     <PackageReference Include="Spectre.Console" Version="0.50.0" />
     <PackageReference Include="Spectre.Console.Cli" Version="0.50.0" />
     <PackageReference Include="System.ServiceModel.Syndication" Version="9.0.8" />
-    <PackageReference Include="Velopack" Version="0.0.1298" />
+    <PackageReference Include="Velopack" Version="1.2.0" />
   </ItemGroup>
 
 </Project>
